@@ -761,11 +761,12 @@ const App: React.FC = () => {
 
             // Ensure our new CARTÃO DO IAGO is correctly there
             const hasCartaoIago = data.expenses.some(e => e.description === 'CARTÃO DO IAGO');
+            const targetIagoAmount = (year === 2026 && month === 7) ? 430.00 : 1819.22;
             if (!hasCartaoIago) {
                 data.expenses.push({
                     id: `exp_cartao_iago_${year}_${month}`,
                     description: "CARTÃO DO IAGO",
-                    amount: 1819.22,
+                    amount: targetIagoAmount,
                     category: "Iago",
                     paid: false,
                     dueDate: `${year}-${month.toString().padStart(2,'0')}-07`,
@@ -773,7 +774,7 @@ const App: React.FC = () => {
                 });
             } else {
                 // Ensure it has the correct amount (in case user had a different amount saved locally)
-                data.expenses = data.expenses.map(e => e.description === 'CARTÃO DO IAGO' ? { ...e, amount: 1819.22, dueDate: `${year}-${month.toString().padStart(2,'0')}-07` } : e);
+                data.expenses = data.expenses.map(e => e.description === 'CARTÃO DO IAGO' ? { ...e, amount: targetIagoAmount, dueDate: `${year}-${month.toString().padStart(2,'0')}-07` } : e);
             }
 
             // 7. Markings as Paid based on user request (LILI, ITAÚ DO ANDRÉ, MARCIA BRITO)
@@ -838,6 +839,18 @@ const App: React.FC = () => {
         data.expenses = data.expenses.map(applyPreserved);
         data.avulsosItems = data.avulsosItems.map(applyPreserved);
         data.incomes = data.incomes.map(applyPreserved);
+
+        // For July 2026 and subsequent months, ensure all debts (expenses and avulsos) are unmarked/unpaid by default
+        if ((year === 2026 && month >= 7) || year > 2026) {
+            data.expenses = data.expenses.map(e => {
+                if (e.userModifiedPaid) return e;
+                return { ...e, paid: false, paidAt: undefined };
+            });
+            data.avulsosItems = data.avulsosItems.map(a => {
+                if (a.userModifiedPaid) return a;
+                return { ...a, paid: false, paidAt: undefined };
+            });
+        }
 
         return data;
     };

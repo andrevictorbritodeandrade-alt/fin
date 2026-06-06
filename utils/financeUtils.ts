@@ -182,6 +182,13 @@ export const generateMonthData = (year: number, month: number): MonthData => {
             }
         }
 
+        // Cartão do Iago is 430.00 only for July 2026 specifically
+        if (c.description.toUpperCase() === "CARTÃO DO IAGO") {
+            if (year === 2026 && month === 7) {
+                finalAmount = 430.00;
+            }
+        }
+
         // Remédios do André is adjusted to 170 reais starting June 2026 and marked as paid only in June 2026 (bought on May 27, 2026). In future months, it is unpaid/unchecked by default.
         if (c.description.toUpperCase().includes("REMÉDIOS DO ANDRÉ") || c.description.toUpperCase().includes("REMEDIOS DO ANDRE")) {
             if (year === 2026 && month === 6) {
@@ -209,16 +216,18 @@ export const generateMonthData = (year: number, month: number): MonthData => {
             if (paidInApr2026.some(p => c.description.toUpperCase().includes(p))) isPaid = true;
         }
 
+        const isFutureMonth = (year === 2026 && month >= 7) || (year > 2026);
+
         newExpenses.push({
             id: `exp_${year}_${month}_${c.description.replace(/\s/g, '')}`,
             description: c.description,
             amount: finalAmount,
             category: c.category,
-            paid: isPaid || (c.amount === 0 && (month >= 4)), // Auto-pay zeroed items
+            paid: isFutureMonth ? false : (isPaid || (c.amount === 0 && (month >= 4))), // Auto-pay zeroed items except for future months
             dueDate: `${year}-${month.toString().padStart(2,'0')}-${c.day.toString().padStart(2,'0')}`,
             group: c.group,
             isSuspended: isSuspended,
-            paidAt: paidAtStr
+            paidAt: isFutureMonth ? undefined : paidAtStr
         });
     });
 
