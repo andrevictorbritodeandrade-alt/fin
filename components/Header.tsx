@@ -47,8 +47,8 @@ const Header: React.FC<HeaderProps> = ({
             {/* Greeting & Action Buttons Row */}
             <div className="flex justify-between items-center px-6 mb-4">
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-white/90 uppercase tracking-[0.2em]">{greeting}, Família!</span>
-                    <span className="text-[10px] font-black text-teal-50/60 uppercase tracking-tighter">{formattedDate}</span>
+                    <span className="text-base lg:text-lg font-black text-white uppercase tracking-[0.1em]">{greeting}, Família!</span>
+                    <span className="text-xs lg:text-sm font-bold text-teal-50/80 uppercase tracking-wide mt-0.5">{formattedDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <button 

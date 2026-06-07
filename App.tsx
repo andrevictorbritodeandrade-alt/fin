@@ -168,17 +168,19 @@ const App: React.FC = () => {
                 sofisa: 4351.00
             };
         } else if (currentYear === 2026 && currentMonth === 6) {
-            // June 2026 reserves: Default to R$ 1641.62 in Santander, R$ 307.98 in Banco Inter (poupança viagem) and R$ 0.00 in Sofisa as requested by user
+            // June 2026 reserves: Default to R$ 1422.40 in Santander (after paying Iago R$ 1819.22 from R$ 3241.62), R$ 307.98 in Banco Inter (poupança viagem) and R$ 0.00 in Sofisa
             if (monthData.bankReserves && 
                 monthData.bankReserves.santander !== 1730.00 && 
                 monthData.bankReserves.santander !== 1641.62 && 
+                monthData.bankReserves.santander !== 3241.62 && 
+                monthData.bankReserves.santander !== 1422.40 && 
                 monthData.bankReserves.inter !== 0 && 
                 monthData.bankReserves.inter !== 248.31 &&
                 monthData.bankReserves.inter !== 307.98 &&
                 monthData.bankReserves.sofisa !== 4351.00 &&
                 monthData.bankReserves.sofisa !== 0.00) return; // Prevent overwriting customized values or custom updates
             newReserves = {
-                santander: 1641.62,
+                santander: 1422.40,
                 inter: 307.98,
                 sofisa: 0.00
             };
@@ -343,12 +345,17 @@ const App: React.FC = () => {
         if (year === 2026 && month === 6) {
             if (data.dailyBalances.length === 0) {
                 data.dailyBalances = [
-                    { id: 'db_01_june', date: '2026-06-01', santander: 1641.62, inter: 307.98, sofisa: 0.00, notes: 'Saldo atual em contas (Inter: poupança viagem, Sofisa: zerado)' }
+                    { id: 'db_01_june', date: '2026-06-01', santander: 1422.40, inter: 307.98, sofisa: 0.00, notes: 'Saldo atual em contas (Inter: poupança viagem, Sofisa: zerado)' }
                 ];
             } else {
                 data.dailyBalances = data.dailyBalances.map(db => {
-                    if (db.id === 'db_01_june' && db.inter === 248.31) {
-                        return { ...db, inter: 307.98 };
+                    if (db.id === 'db_01_june' || db.date === '2026-06-01') {
+                        return {
+                            ...db,
+                            santander: 1422.40,
+                            inter: 307.98,
+                            sofisa: 0.00
+                        };
                     }
                     return db;
                 });
@@ -1049,12 +1056,32 @@ const App: React.FC = () => {
         if (!monthData) return;
         const newData = { ...monthData };
         
+        let amountDiff = 0;
         newData[type] = newData[type].map(t => {
             if (t.id === id) {
+                if (t.paid !== paid) {
+                    amountDiff = t.amount;
+                }
                 return { ...t, paid, paidAt: paid ? new Date().toISOString() : undefined, userModifiedPaid: true };
             }
             return t;
         });
+
+        // Modify Santander balance!
+        if (amountDiff !== 0) {
+            const currentSantander = newData.bankReserves?.santander ?? 0;
+            let newSantander = currentSantander;
+            if (type === 'expenses' || type === 'avulsosItems') {
+                newSantander = paid ? (currentSantander - amountDiff) : (currentSantander + amountDiff);
+            } else if (type === 'incomes') {
+                newSantander = paid ? (currentSantander + amountDiff) : (currentSantander - amountDiff);
+            }
+            
+            newData.bankReserves = {
+                ...newData.bankReserves,
+                santander: Math.round(newSantander * 100) / 100
+            };
+        }
         
         saveData(newData, currentYear, currentMonth);
     };
@@ -1065,7 +1092,29 @@ const App: React.FC = () => {
         const newData = { ...monthData };
         const itemIds = new Set(items.map(i => i.id));
         
+        let totalDiff = 0;
+        items.forEach(i => {
+            if (i.paid === allPaid) { // State will flip to !allPaid
+                totalDiff += i.amount;
+            }
+        });
+        
         newData.expenses = newData.expenses.map(e => itemIds.has(e.id) ? { ...e, paid: !allPaid, paidAt: !allPaid ? new Date().toISOString() : undefined, userModifiedPaid: true } : e);
+        
+        // Update Santander balance!
+        const currentSantander = newData.bankReserves?.santander ?? 0;
+        let newSantander = currentSantander;
+        if (!allPaid) {
+            newSantander -= totalDiff; // Marked as paid
+        } else {
+            newSantander += totalDiff; // Marked as unpaid
+        }
+        
+        newData.bankReserves = {
+            ...newData.bankReserves,
+            santander: Math.round(newSantander * 100) / 100
+        };
+
         saveData(newData, currentYear, currentMonth);
     };
 
@@ -1085,9 +1134,11 @@ const App: React.FC = () => {
         const finalUpdated = { ...updated, userModifiedPaid: true };
 
         // Helper to check and update
+        let oldTx: Transaction | null = null;
         const tryUpdate = (listName: TransactionType) => {
             const index = newData[listName].findIndex(t => t.id === finalUpdated.id);
             if (index !== -1) {
+                oldTx = newData[listName][index];
                 newData[listName][index] = finalUpdated;
                 return true;
             }
@@ -1098,10 +1149,46 @@ const App: React.FC = () => {
         else if (tryUpdate('expenses')) found = true;
         else if (tryUpdate('avulsosItems')) found = true;
 
+        const currentSantander = newData.bankReserves?.santander ?? 0;
+        let newSantander = currentSantander;
+
         if (!found) {
             // New transaction
             newData[targetType] = [finalUpdated, ...newData[targetType]];
+            if (finalUpdated.paid) {
+                if (targetType === 'expenses' || targetType === 'avulsosItems') {
+                    newSantander -= finalUpdated.amount;
+                } else if (targetType === 'incomes') {
+                    newSantander += finalUpdated.amount;
+                }
+            }
+        } else if (oldTx) {
+            // Transaction was edited. Adjust Santander based on differences in paid status and/or amount!
+            const oldT = oldTx as Transaction;
+            
+            // Reverse old transaction's effect if it was paid
+            if (oldT.paid) {
+                if (targetType === 'expenses' || targetType === 'avulsosItems') {
+                    newSantander += oldT.amount;
+                } else if (targetType === 'incomes') {
+                    newSantander -= oldT.amount;
+                }
+            }
+            
+            // Apply new transaction's effect if it is paid
+            if (finalUpdated.paid) {
+                if (targetType === 'expenses' || targetType === 'avulsosItems') {
+                    newSantander -= finalUpdated.amount;
+                } else if (targetType === 'incomes') {
+                    newSantander += finalUpdated.amount;
+                }
+            }
         }
+
+        newData.bankReserves = {
+            ...newData.bankReserves,
+            santander: Math.round(newSantander * 100) / 100
+        };
         
         saveData(newData, currentYear, currentMonth);
         setIsEditModalOpen(false);
@@ -1184,11 +1271,8 @@ const App: React.FC = () => {
     const balance = (stats.combined.paid) - stats.realExpenses.paid;
 
     const latestDailyBalance = useMemo(() => {
-        if (!monthData || !monthData.dailyBalances || monthData.dailyBalances.length === 0) return 0;
-        const sorted = [...monthData.dailyBalances].sort((a, b) => b.date.localeCompare(a.date));
-        const latest = sorted[0];
-        return latest.santander + latest.inter + latest.sofisa;
-    }, [monthData]);
+        return (bankReserves.santander ?? 0) + (bankReserves.inter ?? 0) + (bankReserves.sofisa ?? 0);
+    }, [bankReserves]);
 
     const sobraReal = useMemo(() => {
         return latestDailyBalance - stats.realExpenses.unpaid;
@@ -1486,7 +1570,7 @@ const App: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* QUITAÇÃO DE DÍVIDAS EM ABERTO (USER REQUESTED: BASED ON REAL REVENUE R$1641.62 IN SANTANDER + R$598 BUDGET/CREDIT FROM MUMBUCA) */}
+                                        {/* QUITAÇÃO DE DÍVIDAS EM ABERTO (USER REQUESTED: BASED ON REAL REVENUE R$3241.62 IN SANTANDER + R$598 BUDGET/CREDIT FROM MUMBUCA) */}
                                         <div className="bg-white/45 backdrop-blur-md rounded-3xl lg:rounded-[2.5rem] p-4 lg:p-8 border border-white/60 shadow-xl shadow-slate-200/40 mb-6 lg:mb-8">
                                             <div className="flex items-center gap-2 lg:gap-3 mb-6 lg:mb-8">
                                                 <div className="p-2 lg:p-2.5 bg-rose-50 text-rose-600 rounded-xl">
@@ -1516,7 +1600,7 @@ const App: React.FC = () => {
                                                 <div className="bg-white rounded-2xl p-4 lg:p-6 border border-slate-50 shadow-sm flex flex-col justify-between">
                                                     <span className="text-[9px] lg:text-xs font-black text-slate-400 uppercase tracking-widest">Saldo Real (Santander)</span>
                                                     <span className="text-xl lg:text-2xl font-black text-emerald-600 tracking-tight mt-1">
-                                                        {formatCurrency(bankReserves.santander || 1641.62)}
+                                                        {formatCurrency(bankReserves.santander)}
                                                     </span>
                                                     <span className="text-[9px] lg:text-[10px] mt-2 font-bold text-slate-400">
                                                         Disponível no Santander
@@ -1536,7 +1620,7 @@ const App: React.FC = () => {
 
                                                 {/* Card 4: Missing Amount */}
                                                 {(() => {
-                                                    const santanderBase = bankReserves.santander || 1641.62;
+                                                    const santanderBase = bankReserves.santander;
                                                     const mumbucaInflow = 598.00;
                                                     const totalResources = santanderBase + mumbucaInflow;
                                                     const missingForDebts = stats.realExpenses.unpaid - totalResources;
