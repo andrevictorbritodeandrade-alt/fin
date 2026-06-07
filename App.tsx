@@ -168,31 +168,40 @@ const App: React.FC = () => {
                 sofisa: 4351.00
             };
         } else if (currentYear === 2026 && currentMonth === 6) {
-            // June 2026 reserves: Default to R$ 1641.62 in Santander, R$ 248.31 in Banco Inter (poupança viagem) and R$ 0.00 in Sofisa as requested by user
+            // June 2026 reserves: Default to R$ 1641.62 in Santander, R$ 307.98 in Banco Inter (poupança viagem) and R$ 0.00 in Sofisa as requested by user
             if (monthData.bankReserves && 
                 monthData.bankReserves.santander !== 1730.00 && 
                 monthData.bankReserves.santander !== 1641.62 && 
                 monthData.bankReserves.inter !== 0 && 
                 monthData.bankReserves.inter !== 248.31 &&
+                monthData.bankReserves.inter !== 307.98 &&
                 monthData.bankReserves.sofisa !== 4351.00 &&
                 monthData.bankReserves.sofisa !== 0.00) return; // Prevent overwriting customized values or custom updates
             newReserves = {
                 santander: 1641.62,
-                inter: 248.31,
+                inter: 307.98,
                 sofisa: 0.00
             };
         } else if (currentYear === 2026 && currentMonth > 6) {
-            // For future months (e.g. July 2026 and onwards): default Inter to 248.31 (poupança viagem) and Sofisa to 0.00 by default unless authorized
+            // For future months (e.g. July 2026 and onwards): default Inter to 307.98 (poupança viagem) and Sofisa to 0.00 by default unless authorized
             if (monthData.bankReserves && 
-                monthData.bankReserves.inter === 248.31 && 
+                (monthData.bankReserves.inter === 248.31 || monthData.bankReserves.inter === 307.98) && 
                 monthData.bankReserves.sofisa === 0.00) {
-                return; // already initialized, keep whatever Santander balance exists or has been edited
+                if (monthData.bankReserves.inter === 248.31) {
+                    newReserves = {
+                        ...monthData.bankReserves,
+                        inter: 307.98
+                    };
+                } else {
+                    return; // already initialized, keep whatever Santander balance exists or has been edited
+                }
+            } else {
+                newReserves = {
+                    santander: monthData.bankReserves?.santander || 0.00,
+                    inter: 307.98,
+                    sofisa: 0.00
+                };
             }
-            newReserves = {
-                santander: monthData.bankReserves?.santander || 0.00,
-                inter: 248.31,
-                sofisa: 0.00
-            };
         } else {
             // Fallback: This is a complex derivation based on initial May salaries.
             // We usually only want to auto-derive if NO bankReserves exist yet.
@@ -331,10 +340,19 @@ const App: React.FC = () => {
         }
 
         // Help user pre-populate requested days for June 2026 cycle
-        if (year === 2026 && month === 6 && data.dailyBalances.length === 0) {
-            data.dailyBalances = [
-                { id: 'db_01_june', date: '2026-06-01', santander: 1641.62, inter: 248.31, sofisa: 0.00, notes: 'Saldo atual em contas (Inter: poupança viagem, Sofisa: zerado)' }
-            ];
+        if (year === 2026 && month === 6) {
+            if (data.dailyBalances.length === 0) {
+                data.dailyBalances = [
+                    { id: 'db_01_june', date: '2026-06-01', santander: 1641.62, inter: 307.98, sofisa: 0.00, notes: 'Saldo atual em contas (Inter: poupança viagem, Sofisa: zerado)' }
+                ];
+            } else {
+                data.dailyBalances = data.dailyBalances.map(db => {
+                    if (db.id === 'db_01_june' && db.inter === 248.31) {
+                        return { ...db, inter: 307.98 };
+                    }
+                    return db;
+                });
+            }
         }
 
         // User request (May 2026 Cycle): Absolute corrections
@@ -777,7 +795,44 @@ const App: React.FC = () => {
                 data.expenses = data.expenses.map(e => e.description === 'CARTÃO DO IAGO' ? { ...e, amount: targetIagoAmount, dueDate: `${year}-${month.toString().padStart(2,'0')}-07` } : e);
             }
 
-            // 7. Markings as Paid based on user request (LILI, ITAÚ DO ANDRÉ, MARCIA BRITO)
+            // Ensure EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO is correctly present for months 6, 7, 8, 9 in 2026
+            if (year === 2026 && month >= 6 && month <= 9) {
+                const currentInst = month - 5; // June is 1, July is 2, Aug is 3, Sept is 4
+                const hasLoanContas = data.expenses.some(e => {
+                    const d = e.description.toUpperCase();
+                    return d.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') || d.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO');
+                });
+                if (!hasLoanContas) {
+                    data.expenses.push({
+                        id: `fin_EMPRÉSTIMOPARAPAGARASCONTASDEJUNHO_${currentInst}`,
+                        description: "EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO",
+                        amount: 486.00, // 1944.00 / 4
+                        category: "Dívidas",
+                        paid: false,
+                        dueDate: `2026-0${month}-20`,
+                        installments: { current: currentInst, total: 4 },
+                        group: 'MARCIA BRITO'
+                    });
+                } else {
+                    // Update to ensure correct installment, amount, group, etc.
+                    data.expenses = data.expenses.map(e => {
+                        const d = e.description.toUpperCase();
+                        if (d.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') || d.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO')) {
+                            return {
+                                ...e,
+                                amount: 486.00,
+                                category: "Dívidas",
+                                dueDate: `2026-0${month}-20`,
+                                installments: { current: currentInst, total: 4 },
+                                group: 'MARCIA BRITO'
+                            };
+                        }
+                        return e;
+                    });
+                }
+            }
+
+            // 7. Markings as Paid based on user request (LILI, ITAÚ DO ANDRÉ, MARCIA BRITO, CARTÃO DO IAGO)
             const markAsPaidLogic = (e: Transaction) => {
                 const desc = e.description.toUpperCase();
                 
@@ -801,9 +856,14 @@ const App: React.FC = () => {
                     return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
                 }
 
-                // Marcia Brito (exceto Alinhamento do carro, exceto Marcia Bispo)
+                // Cartão do Iago
+                if (desc === 'CARTÃO DO IAGO' || desc === 'CARTAO DO IAGO') {
+                    return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
+                }
+
+                // Marcia Brito (exceto Alinhamento do carro, exceto Marcia Bispo, exceto empréstimo contas de junho)
                 const isMarciaBrito = e.group === 'MARCIA BRITO' || (desc.includes('MARCIA') && !desc.includes('BISPO') && e.group !== 'MARCIA BISPO');
-                if (isMarciaBrito && desc !== 'ALINHAMENTO DO CARRO') {
+                if (isMarciaBrito && desc !== 'ALINHAMENTO DO CARRO' && !desc.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') && !desc.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO')) {
                     return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
                 }
 
@@ -823,9 +883,11 @@ const App: React.FC = () => {
             const isItauAndre = desc.includes('CARTÃO DO ITAÚ DO ANDRÉ') || desc.includes('CARTAO DO ITAU DO ANDRE');
             const isAluguel = desc === 'ALUGUEL';
             const isInternetCasa = desc === 'INTERNET DA CASA';
+            const isIagoCard = desc === 'CARTÃO DO IAGO' || desc === 'CARTAO DO IAGO';
+            const isLoanContasJunho = desc.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') || desc.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO');
 
             if (year === 2026 && month === 6 && 
-               ((isMarciaBrito && desc !== 'ALINHAMENTO DO CARRO') || isLili || isItauAndre || isAluguel || isInternetCasa)) {
+               (((isMarciaBrito && desc !== 'ALINHAMENTO DO CARRO' && !isLoanContasJunho)) || isLili || isItauAndre || isAluguel || isInternetCasa || isIagoCard)) {
                 return t; // Keep the programmatic override for these accounts only in June 2026
             }
             
@@ -852,6 +914,14 @@ const App: React.FC = () => {
             });
         }
 
+        // Sort expenses and avulsosItems alphabetically by description (QQ Divida dentro de cada categoria)
+        data.expenses = [...data.expenses].sort((a, b) => 
+            a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' })
+        );
+        data.avulsosItems = [...data.avulsosItems].sort((a, b) => 
+            a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' })
+        );
+
         return data;
     };
 
@@ -868,12 +938,10 @@ const App: React.FC = () => {
                     console.error("Failed to parse local data", e);
                     const newData = ensureSystemIntegrity(generateMonthData(year, month), year, month);
                     setMonthData(newData);
-                    saveData(newData, year, month);
                 }
             } else {
                 const newData = ensureSystemIntegrity(generateMonthData(year, month), year, month);
                 setMonthData(newData);
-                saveData(newData, year, month);
             }
         } catch (error) {
             console.error("Critical error in loadData", error);
@@ -905,6 +973,27 @@ const App: React.FC = () => {
                 if (!localData || cloudData.updatedAt > localData.updatedAt) {
                     setMonthData(cloudData);
                     localStorage.setItem(getStorageKey(year, month), JSON.stringify(cloudData));
+                } else if (localData && localData.updatedAt > cloudData.updatedAt) {
+                    // Local data is newer than Firestore! Push local to cloud!
+                    setDoc(docRef, localData)
+                        .then(() => setSyncStatus('online'))
+                        .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
+                }
+            } else {
+                // Documents does not exist in Firestore yet!
+                // If we have local data, push it. Otherwise generate default and push.
+                const localData = monthDataRef.current;
+                if (localData) {
+                    setDoc(docRef, localData)
+                        .then(() => setSyncStatus('online'))
+                        .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
+                } else {
+                    const newData = ensureSystemIntegrity(generateMonthData(year, month), year, month);
+                    setMonthData(newData);
+                    localStorage.setItem(getStorageKey(year, month), JSON.stringify(newData));
+                    setDoc(docRef, newData)
+                        .then(() => setSyncStatus('online'))
+                        .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
                 }
             }
         }, (error) => {
@@ -918,7 +1007,8 @@ const App: React.FC = () => {
     const saveData = async (data: MonthData | null, year: number, month: number) => {
         if (!data) return;
         
-        const updatedData = { ...data, updatedAt: Date.now() };
+        const ensuredData = ensureSystemIntegrity(data, year, month);
+        const updatedData = { ...ensuredData, updatedAt: Date.now() };
         setMonthData(updatedData);
         localStorage.setItem(getStorageKey(year, month), JSON.stringify(updatedData));
 
@@ -1032,7 +1122,10 @@ const App: React.FC = () => {
 
     const filteredTransactions = useMemo(() => {
         if (!monthData) return [];
-        let list = monthData[transactionListType];
+        let list = [...monthData[transactionListType]];
+        if (transactionListType === 'expenses' || transactionListType === 'avulsosItems') {
+            list.sort((a, b) => a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' }));
+        }
         if (filter.type === 'group') {
             list = list.filter(t => t.group === filter.value);
         } else if (filter.type === 'category') {
@@ -1107,7 +1200,9 @@ const App: React.FC = () => {
         const groups: Record<string, { name: string, total: number, paidAmount: number, items: Transaction[] }> = {};
         
         // Include both expenses and avulsosItems in the grouping
-        const allItems = [...monthData.expenses, ...monthData.avulsosItems];
+        const allItems = [...monthData.expenses, ...monthData.avulsosItems].sort((a, b) => 
+            a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' })
+        );
         
         allItems.forEach(e => {
             const groupNormal = e.group ? e.group.toUpperCase() : '';
@@ -1481,7 +1576,7 @@ const App: React.FC = () => {
                                                 const unpaidItems = [
                                                     ...monthData.expenses.filter(e => !isExcluded(e) && !e.paid),
                                                     ...monthData.avulsosItems.filter(e => !isExcluded(e) && !e.paid)
-                                                ];
+                                                ].sort((a, b) => a.description.localeCompare(b.description, 'pt-BR', { sensitivity: 'base' }));
 
                                                 if (unpaidItems.length === 0) {
                                                     return (
