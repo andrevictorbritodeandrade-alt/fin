@@ -786,7 +786,7 @@ const App: React.FC = () => {
 
             // Ensure our new CARTÃO DO IAGO is correctly there
             const hasCartaoIago = data.expenses.some(e => e.description === 'CARTÃO DO IAGO');
-            const targetIagoAmount = (year === 2026 && month === 7) ? 430.00 : 1819.22;
+            const targetIagoAmount = (year === 2026 && month === 7) ? 430.00 : (year > 2026 || (year === 2026 && month >= 8) ? 0 : 1819.22);
             if (!hasCartaoIago) {
                 data.expenses.push({
                     id: `exp_cartao_iago_${year}_${month}`,

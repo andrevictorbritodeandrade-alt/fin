@@ -43,19 +43,26 @@ const Header: React.FC<HeaderProps> = ({
         : 'bg-gradient-to-r from-rose-700 to-pink-600';
 
     return (
-        <header className="sticky top-0 z-40 bg-gradient-to-b from-teal-600 via-teal-500/30 to-[#f0fdf4] backdrop-blur-lg pb-6 pt-4 rounded-b-[2.5rem] border-b border-white/20">
+        <header className="sticky top-0 z-40 bg-gradient-to-b from-teal-600 via-teal-500/30 to-[#f0fdf4] backdrop-blur-lg pb-6 pt-4 rounded-b-[2.5rem] border-b border-emerald-900/10">
+            {/* Header & Title */}
+            <div className="flex flex-col items-center pt-2 pb-4">
+                <h1 className="text-4xl lg:text-5xl font-black text-emerald-950 tracking-tighter drop-shadow-sm uppercase">
+                    FINANÇAS DA FAMÍLIA
+                </h1>
+            </div>
+
             {/* Greeting & Action Buttons Row */}
             <div className="flex justify-between items-center px-6 mb-4">
                 <div className="flex flex-col">
-                    <span className="text-base lg:text-lg font-black text-white uppercase tracking-[0.1em]">{greeting}, Família!</span>
-                    <span className="text-xs lg:text-sm font-bold text-teal-50/80 uppercase tracking-wide mt-0.5">{formattedDate}</span>
+                    <span className="text-base lg:text-lg font-black text-emerald-950 uppercase tracking-[0.1em]">{greeting}, Família!</span>
+                    <span className="text-xs lg:text-sm font-bold text-emerald-900/80 uppercase tracking-wide mt-0.5">{formattedDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <button 
                         onClick={onSync}
-                        className={`p-1.5 rounded-lg transition-all border border-white/10 shadow-lg ${
-                            syncStatus === 'online' ? 'bg-emerald-400 text-white' :
-                            syncStatus === 'syncing' ? 'bg-blue-400 text-white' : 'bg-white/10 text-white'
+                        className={`p-1.5 rounded-lg transition-all border border-emerald-900/10 shadow-lg ${
+                            syncStatus === 'online' ? 'bg-emerald-900 text-white' :
+                            syncStatus === 'syncing' ? 'bg-blue-800 text-white' : 'bg-white/50 text-emerald-900'
                         }`}
                     >
                         <RefreshCw size={16} strokeWidth={4} className={syncStatus === 'syncing' ? 'animate-spin' : ''} />
@@ -65,15 +72,15 @@ const Header: React.FC<HeaderProps> = ({
 
             {/* Month Selector Row */}
             <div className="flex justify-center items-center px-5 mb-4">
-                <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-inner">
-                    <button onClick={() => onMonthChange(-1)} className="p-1.5 rounded-lg hover:bg-white/10 text-white transition-all">
-                        <ChevronLeft size={16} strokeWidth={4} />
+                <div className="flex items-center gap-4 bg-emerald-900/10 p-2 rounded-2xl border border-emerald-900/10 backdrop-blur-md shadow-inner">
+                    <button onClick={() => onMonthChange(-1)} className="p-2 rounded-xl hover:bg-emerald-900/20 text-emerald-950 transition-all">
+                        <ChevronLeft size={20} strokeWidth={4} />
                     </button>
-                    <span className="text-lg font-black w-24 text-center text-white uppercase tracking-widest">
-                        {monthNames[month - 1].slice(0, 3)} <span className="opacity-40">{year}</span>
+                    <span className="text-lg font-black w-40 text-center text-emerald-950 uppercase tracking-widest">
+                        {monthNames[month - 1]} <span className="opacity-60">{year}</span>
                     </span>
-                    <button onClick={() => onMonthChange(1)} className="p-1.5 rounded-lg hover:bg-white/10 text-white transition-all">
-                        <ChevronRight size={16} strokeWidth={4} />
+                    <button onClick={() => onMonthChange(1)} className="p-2 rounded-xl hover:bg-emerald-900/20 text-emerald-950 transition-all">
+                        <ChevronRight size={20} strokeWidth={4} />
                     </button>
                 </div>
             </div>
