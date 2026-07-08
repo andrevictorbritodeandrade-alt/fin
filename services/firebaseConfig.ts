@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import firebaseConfig from "../firebase-applet-config.json";
 
 let app, auth, db;
@@ -14,9 +14,7 @@ if (firebaseConfig.projectId) {
         
         // Initialize Firestore with the specific databaseId from config
         db = initializeFirestore(app, {
-            localCache: persistentLocalCache({
-                tabManager: persistentMultipleTabManager()
-            })
+            localCache: memoryLocalCache()
         }, (firebaseConfig as any).firestoreDatabaseId || "(default)");
         
     } catch (error) {

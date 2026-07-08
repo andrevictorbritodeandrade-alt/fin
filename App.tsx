@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import Header from './components/Header';
+
 import Sidebar from './components/Sidebar';
 import SummaryCard from './components/SummaryCard';
 import TransactionList from './components/TransactionList';
@@ -69,8 +69,8 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 const App: React.FC = () => {
     // App State
     // Default to June 2026 as requested by the user
-    const [currentMonth, setCurrentMonth] = useState(6);
-    const [currentYear, setCurrentYear] = useState(2026);
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [monthData, setMonthData] = useState<MonthData | null>(null);
     const [view, setView] = useState<'home' | 'transactions' | 'statistics' | 'settlements'>('home');
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -148,10 +148,12 @@ const App: React.FC = () => {
         const forceUpdateV33 = localStorage.getItem('force_update_v33_mark_payments_28_apr');
         if (!forceUpdateV33) {
             localStorage.removeItem('financeData_2026_5');
-            localStorage.setItem('force_update_v33_mark_payments_28_apr', 'true');
+            try { localStorage.setItem('force_update_v33_mark_payments_28_apr', 'true'); } catch (e) { console.warn("LocalStorage Quota Exceeded:", e); }
             window.location.reload();
         }
     }, []);
+
+    
 
     // Derived Santander balance based on exact User Calculation (May 2026 Cycle)
     useEffect(() => {
@@ -382,7 +384,7 @@ const App: React.FC = () => {
                 const existing = data.expenses.find(e => e.description.toUpperCase().includes(desc.toUpperCase()));
                 if (existing) {
                     data.expenses = data.expenses.map(e => e.description.toUpperCase().includes(desc.toUpperCase()) 
-                        ? { ...e, amount: 0, installments: { current, total }, paid: false, paidAt: undefined, group } : e);
+                        ? { ...e, amount: 0, installments: { current, total }, paid: false, paidAt: null, group } : e);
                 } else {
                     data.expenses.push({
                         id: `loan_${desc.replace(/\s/g,'')}`,
@@ -414,7 +416,7 @@ const App: React.FC = () => {
                 if ((desc.includes("CLARO") && !desc.includes("EMPRÉSTIMO")) || desc.includes("SEGURO DO CARRO")) {
                     // But if it was paid in Apr logic, keep it? No, user says "dar baixa no valor do aluguel"
                     // implies they are actively reporting May payments.
-                    return { ...e, paid: false, paidAt: undefined };
+                    return { ...e, paid: false, paidAt: null, };
                 }
 
                 // Iago: Removed manual override for May as requested
@@ -468,7 +470,7 @@ const App: React.FC = () => {
                                          (desc.includes("REMÉDIO") && desc.includes("MARCIA"));
                     
                     if (isUnpaidItem) {
-                        return { ...e, paid: false, paidAt: undefined };
+                        return { ...e, paid: false, paidAt: null, };
                     } else {
                         return { ...e, paid: true, paidAt: "2026-05-12T12:00:00Z" };
                     }
@@ -593,7 +595,7 @@ const App: React.FC = () => {
         // User request starting June 2026 (June and forward)
         if (year === 2026 && month >= 6) {
 
-            // André's salary changes to approximately 3100.00 starting July 2026 (month >= 7)
+            // André's salary changes to approximately 3334.00 starting July 2026 (month >= 7)
             if (month >= 7) {
                 // If July 2026, customize dates and names explicitly as requested
                 if (month === 7) {
@@ -603,7 +605,7 @@ const App: React.FC = () => {
                             return { 
                                 ...i, 
                                 description: "SALÁRIO ANDRÉ (Recebimento: 01/07 - Estado)",
-                                amount: 3100.00,
+                                amount: 3334.00,
                                 date: "2026-07-01",
                                 dueDate: "2026-07-01"
                             };
@@ -623,7 +625,7 @@ const App: React.FC = () => {
                     data.incomes = data.incomes.map(i => {
                         const desc = i.description.toUpperCase();
                         if (desc === "SALARIO ANDRE" || desc === "SALÁRIO ANDRÉ" || desc === "SALÁRIO DO ANDRÉ" || desc === "SALARIO DO ANDRE") {
-                            return { ...i, amount: 3100.00 };
+                            return { ...i, amount: 3334.00 };
                         }
                         return i;
                     });
@@ -736,11 +738,20 @@ const App: React.FC = () => {
                 }
             }
 
-            // 2. Cartão do Itaú do André is always 100 reais
+            // Ensure Aluguel is 1300
+            data.expenses = data.expenses.map(e => {
+                const desc = e.description.toUpperCase();
+                if (desc === "ALUGUEL") {
+                    return { ...e, amount: 1300.00 };
+                }
+                return e;
+            });
+
+            // 2. Cartão do Itaú do André is 100 reais (but 200 in July 2026)
             data.expenses = data.expenses.map(e => {
                 const desc = e.description.toUpperCase();
                 if (desc.includes("CARTÃO DO ITAÚ DO ANDRÉ") || desc.includes("CARTAO DO ITAU DO ANDRE")) {
-                    return { ...e, amount: 100.00 };
+                    return { ...e, amount: (year === 2026 && month === 7) ? 200.00 : 100.00 };
                 }
                 return e;
             });
@@ -766,7 +777,7 @@ const App: React.FC = () => {
                     if (month === 6) {
                         return { ...e, amount: 170.00, paid: true, paidAt: '2026-05-27' };
                     } else if (month >= 7) {
-                        return { ...e, amount: 170.00, paid: false, paidAt: undefined };
+                        return { ...e, amount: 170.00, paid: false, paidAt: null, };
                     }
                 }
                 return e;
@@ -775,36 +786,66 @@ const App: React.FC = () => {
             // 6. Iago single transaction requested by user
             data.expenses = data.expenses.filter(e => {
                 const isIago = e.category === 'Iago' || e.group === 'IAGO' || e.description.toUpperCase().includes('IAGO');
-                if (isIago && e.description !== 'CARTÃO DO IAGO') return false; 
+                if (isIago && e.description !== 'CARTÃO DO IAGO') {
+                    const desc = e.description.toUpperCase();
+                    if (desc.includes("ESTADIA EM SALVADOR") || desc.includes("697+697")) {
+                        return true;
+                    }
+                    return false;
+                }
                 return true;
             });
             data.avulsosItems = data.avulsosItems.filter(e => {
                 const isIago = e.category === 'Iago' || e.group === 'IAGO' || e.description.toUpperCase().includes('IAGO');
-                if (isIago && e.description !== 'CARTÃO DO IAGO') return false; 
+                if (isIago && e.description !== 'CARTÃO DO IAGO') {
+                    const desc = e.description.toUpperCase();
+                    if (desc.includes("ESTADIA EM SALVADOR") || desc.includes("697+697")) {
+                        return true;
+                    }
+                    return false;
+                }
                 return true;
             });
 
             // Ensure our new CARTÃO DO IAGO is correctly there
-            const hasCartaoIago = data.expenses.some(e => e.description === 'CARTÃO DO IAGO');
-            const targetIagoAmount = (year === 2026 && month === 7) ? 430.00 : (year > 2026 || (year === 2026 && month >= 8) ? 0 : 1819.22);
+            const hasCartaoIago = data.expenses.some(e => e.description === 'CARTÃO DO IAGO' || e.description.includes('NUBANK'));
+            const targetIagoAmount = (year === 2026 && month === 7) ? 1204.00 : (year > 2026 || (year === 2026 && month >= 8) ? 0 : 1819.22);
             if (!hasCartaoIago) {
                 data.expenses.push({
                     id: `exp_cartao_iago_${year}_${month}`,
-                    description: "CARTÃO DO IAGO",
+                    description: "CARTÃO DO IAGO (NUBANK)",
                     amount: targetIagoAmount,
                     category: "Iago",
-                    paid: false,
+                    paid: (year === 2026 && month === 7) ? true : false,
+                    userModifiedPaid: (year === 2026 && month === 7) ? true : false,
                     dueDate: `${year}-${month.toString().padStart(2,'0')}-07`,
-                    group: 'IAGO'
+                    group: 'IAGO (CARTÃO NUBANK)'
                 });
             } else {
                 // Ensure it has the correct amount (in case user had a different amount saved locally)
-                data.expenses = data.expenses.map(e => e.description === 'CARTÃO DO IAGO' ? { ...e, amount: targetIagoAmount, dueDate: `${year}-${month.toString().padStart(2,'0')}-07` } : e);
+                data.expenses = data.expenses.map(e => {
+                    if (e.description.includes('IAGO') && (e.description.includes('CARTAO') || e.description.includes('CARTÃO'))) {
+                        let isPaid = e.paid;
+                        let userMod = e.userModifiedPaid;
+                        if (year === 2026 && month === 7) {
+                            isPaid = true;
+                            userMod = true;
+                        }
+                        return { ...e, description: "CARTÃO DO IAGO (NUBANK)", amount: targetIagoAmount, paid: isPaid, userModifiedPaid: userMod, dueDate: `${year}-${month.toString().padStart(2,'0')}-07`, group: 'IAGO (CARTÃO NUBANK)' };
+                    }
+                    return e;
+                });
             }
 
-            // Ensure EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO is correctly present for months 6, 7, 8, 9 in 2026
-            if (year === 2026 && month >= 6 && month <= 9) {
-                const currentInst = month - 5; // June is 1, July is 2, Aug is 3, Sept is 4
+            // Ensure EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO is correctly present for months 7, 8, 9, 10 in 2026
+            if (year === 2026 && month === 6) {
+                 data.expenses = data.expenses.filter(e => {
+                     const d = e.description.toUpperCase();
+                     return !(d.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') || d.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO'));
+                 });
+            }
+            if (year === 2026 && month >= 7 && month <= 10) {
+                const currentInst = month - 6; // July is 1, Aug is 2, Sept is 3, Oct is 4
                 const hasLoanContas = data.expenses.some(e => {
                     const d = e.description.toUpperCase();
                     return d.includes('EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO') || d.includes('EMPRESTIMO PARA PAGAR AS CONTAS DE JUNHO');
@@ -815,8 +856,8 @@ const App: React.FC = () => {
                         description: "EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO",
                         amount: 486.00, // 1944.00 / 4
                         category: "Dívidas",
-                        paid: false,
-                        dueDate: `2026-0${month}-20`,
+                        paid: month === 7, userModifiedPaid: month === 7,
+                        dueDate: `2026-${month.toString().padStart(2,'0')}-20`,
                         installments: { current: currentInst, total: 4 },
                         group: 'MARCIA BRITO'
                     });
@@ -829,14 +870,43 @@ const App: React.FC = () => {
                                 ...e,
                                 amount: 486.00,
                                 category: "Dívidas",
-                                dueDate: `2026-0${month}-20`,
+                                dueDate: `2026-${month.toString().padStart(2,'0')}-20`,
                                 installments: { current: currentInst, total: 4 },
+                                paid: month === 7 ? true : e.paid, userModifiedPaid: month === 7 ? true : e.userModifiedPaid,
                                 group: 'MARCIA BRITO'
                             };
                         }
                         return e;
                     });
                 }
+            }
+
+            // Ensure CARTÃO DO INTER DO ANDRÉ for July 2026
+            if (year === 2026 && month === 7) {
+                const hasInter = data.expenses.some(e => e.description.toUpperCase().includes("CARTÃO DO INTER DO ANDRÉ") || e.description.toUpperCase().includes("CARTAO DO INTER DO ANDRE"));
+                if (!hasInter) {
+                    data.expenses.push({
+                        id: `exp_cartao_inter_andre_${year}_${month}`,
+                        description: "CARTÃO DO INTER DO ANDRÉ",
+                        amount: 386.00,
+                        category: "Moradia",
+                        paid: true, // as requested earlier
+                        userModifiedPaid: true,
+                        dueDate: `${year}-07-10`,
+                        installments: { current: 1, total: 1 },
+                        group: 'MORADIA'
+                    });
+                }
+            }
+
+            // Seguro do carro in July 2026 is skipped (congelado)
+            if (year === 2026 && month === 7) {
+                 data.expenses = data.expenses.map(e => {
+                     if (e.description.toUpperCase() === "SEGURO DO CARRO") {
+                         return { ...e, skipped: true };
+                     }
+                     return e;
+                 });
             }
 
             // 7. Markings as Paid based on user request (LILI, ITAÚ DO ANDRÉ, MARCIA BRITO, CARTÃO DO IAGO)
@@ -848,7 +918,6 @@ const App: React.FC = () => {
                     return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
                 }
 
-                // Internet da casa
                 if (desc === 'INTERNET DA CASA') {
                     return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
                 }
@@ -864,7 +933,7 @@ const App: React.FC = () => {
                 }
 
                 // Cartão do Iago
-                if (desc === 'CARTÃO DO IAGO' || desc === 'CARTAO DO IAGO') {
+                if (desc.includes('CARTÃO DO IAGO') || desc.includes('CARTAO DO IAGO') || desc.includes('IAGO (CARTÃO NUBANK)')) {
                     return { ...e, paid: true, paidAt: e.paidAt || "2026-06-06T12:00:00Z" };
                 }
 
@@ -876,10 +945,58 @@ const App: React.FC = () => {
 
                 return e;
             };
+
             if (month === 6) {
                 data.expenses = data.expenses.map(markAsPaidLogic);
                 data.avulsosItems = data.avulsosItems.map(markAsPaidLogic);
             }
+        }
+
+        // New installment expenses for Iago starting in August 2026
+        let iagoNewInst = 0;
+        if (year === 2026 && month >= 8 && month <= 12) {
+            iagoNewInst = month - 7; // Aug = 1, Sept = 2, Oct = 3, Nov = 4, Dec = 5
+        } else if (year === 2027 && month === 1) {
+            iagoNewInst = 6;
+        }
+
+        if ((year === 2026 && month >= 8) || (year === 2027 && month === 1)) {
+            const addOrUpdateIagoExpense = (description: string, amount: number, idSuffix: string, installments: any) => {
+                const hasExpense = data.expenses.some(e => e.description.toUpperCase().includes(description.toUpperCase()));
+                if (!hasExpense) {
+                    data.expenses.push({
+                        id: `exp_${idSuffix}_iago_${year}_${month}`,
+                        description: `${description} (IAGO)`,
+                        amount: amount,
+                        category: "Iago",
+                        paid: false,
+                        dueDate: `${year}-${month.toString().padStart(2,'0')}-07`,
+                        installments: installments,
+                        group: 'IAGO (CARTÃO NUBANK)'
+                    });
+                } else {
+                    data.expenses = data.expenses.map(e => e.description.toUpperCase().includes(description.toUpperCase()) 
+                        ? { ...e, description: `${description} (IAGO)`, amount: amount, installments: installments, dueDate: `${year}-${month.toString().padStart(2,'0')}-07`, group: 'IAGO (CARTÃO NUBANK)' } : e);
+                }
+            };
+
+            if (year === 2026 && month === 8) {
+                addOrUpdateIagoExpense("ABASTECIMENTO", 310.00, "abastecimento", null);
+            }
+            if (iagoNewInst >= 1 && iagoNewInst <= 6) {
+                addOrUpdateIagoExpense("ESTADIA DE MARAGOGI", 37.61, "maragogi", { current: iagoNewInst, total: 6 });
+                addOrUpdateIagoExpense("PRIMEIRA ESTADIA EM SALVADOR", 30.95, "primeira_salvador", { current: iagoNewInst, total: 6 });
+                addOrUpdateIagoExpense("ESTADIA EM ARACAJU", 52.17, "aracaju", { current: iagoNewInst, total: 6 });
+                addOrUpdateIagoExpense("SEGUNDA ESTADIA EM SALVADOR", 92.85, "segunda_salvador", { current: iagoNewInst, total: 6 });
+            }
+            
+            // Cleanup old variables
+            data.expenses = data.expenses.filter(e => {
+                const d = e.description.toUpperCase();
+                return !(d.includes("ESTADIA EM SALVADOR (IAGO)") && !d.includes("PRIMEIRA") && !d.includes("SEGUNDA")) && 
+                       !(d.includes("COMPRA (697+697)")) &&
+                       !(d.includes("ALUGUEL DO CARRO (IAGO)"));
+            });
         }
 
         // Apply preserved user states
@@ -913,11 +1030,11 @@ const App: React.FC = () => {
         if ((year === 2026 && month >= 7) || year > 2026) {
             data.expenses = data.expenses.map(e => {
                 if (e.userModifiedPaid) return e;
-                return { ...e, paid: false, paidAt: undefined };
+                return { ...e, paid: false, paidAt: null, };
             });
             data.avulsosItems = data.avulsosItems.map(a => {
                 if (a.userModifiedPaid) return a;
-                return { ...a, paid: false, paidAt: undefined };
+                return { ...a, paid: false, paidAt: null, };
             });
         }
 
@@ -979,10 +1096,10 @@ const App: React.FC = () => {
                 // Only update if cloud data is newer
                 if (!localData || cloudData.updatedAt > localData.updatedAt) {
                     setMonthData(cloudData);
-                    localStorage.setItem(getStorageKey(year, month), JSON.stringify(cloudData));
+                    try { localStorage.setItem(getStorageKey(year, month), JSON.stringify(cloudData)); } catch (e) { console.warn("LocalStorage Quota Exceeded:", e); }
                 } else if (localData && localData.updatedAt > cloudData.updatedAt) {
                     // Local data is newer than Firestore! Push local to cloud!
-                    setDoc(docRef, localData)
+                    setDoc(docRef, JSON.parse(JSON.stringify(localData)))
                         .then(() => setSyncStatus('online'))
                         .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
                 }
@@ -991,14 +1108,14 @@ const App: React.FC = () => {
                 // If we have local data, push it. Otherwise generate default and push.
                 const localData = monthDataRef.current;
                 if (localData) {
-                    setDoc(docRef, localData)
+                    setDoc(docRef, JSON.parse(JSON.stringify(localData)))
                         .then(() => setSyncStatus('online'))
                         .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
                 } else {
                     const newData = ensureSystemIntegrity(generateMonthData(year, month), year, month);
                     setMonthData(newData);
-                    localStorage.setItem(getStorageKey(year, month), JSON.stringify(newData));
-                    setDoc(docRef, newData)
+                    try { localStorage.setItem(getStorageKey(year, month), JSON.stringify(newData)); } catch (e) { console.warn("LocalStorage Quota Exceeded:", e); }
+                    setDoc(docRef, JSON.parse(JSON.stringify(newData)))
                         .then(() => setSyncStatus('online'))
                         .catch(e => handleFirestoreError(e, OperationType.WRITE, path));
                 }
@@ -1011,20 +1128,22 @@ const App: React.FC = () => {
         return unsubscribe;
     };
 
+    const cleanDataForFirestore = (data: any) => JSON.parse(JSON.stringify(data));
+
     const saveData = async (data: MonthData | null, year: number, month: number) => {
         if (!data) return;
         
         const ensuredData = ensureSystemIntegrity(data, year, month);
         const updatedData = { ...ensuredData, updatedAt: Date.now() };
         setMonthData(updatedData);
-        localStorage.setItem(getStorageKey(year, month), JSON.stringify(updatedData));
+        try { localStorage.setItem(getStorageKey(year, month), JSON.stringify(updatedData)); } catch (e) { console.warn("LocalStorage Quota Exceeded:", e); }
 
         if (isConfigured && auth?.currentUser) {
             setSyncStatus('syncing');
             const path = `families/${FAMILY_ID}/months/${year}_${month}`;
             try {
                 const docRef = doc(db, 'families', FAMILY_ID, 'months', `${year}_${month}`);
-                await setDoc(docRef, updatedData);
+                await setDoc(docRef, cleanDataForFirestore(updatedData));
                 setSyncStatus('online');
             } catch (e) {
                 handleFirestoreError(e, OperationType.WRITE, path);
@@ -1062,7 +1181,7 @@ const App: React.FC = () => {
                 if (t.paid !== paid) {
                     amountDiff = t.amount;
                 }
-                return { ...t, paid, paidAt: paid ? new Date().toISOString() : undefined, userModifiedPaid: true };
+                return { ...t, paid, paidAt: paid ? new Date().toISOString() : null, userModifiedPaid: true };
             }
             return t;
         });
@@ -1099,7 +1218,7 @@ const App: React.FC = () => {
             }
         });
         
-        newData.expenses = newData.expenses.map(e => itemIds.has(e.id) ? { ...e, paid: !allPaid, paidAt: !allPaid ? new Date().toISOString() : undefined, userModifiedPaid: true } : e);
+        newData.expenses = newData.expenses.map(e => itemIds.has(e.id) ? { ...e, paid: !allPaid, paidAt: !allPaid ? new Date().toISOString() : null, userModifiedPaid: true } : e);
         
         // Update Santander balance!
         const currentSantander = newData.bankReserves?.santander ?? 0;
@@ -1202,7 +1321,7 @@ const App: React.FC = () => {
             category: 'Outros',
             paid: false,
             dueDate: `${currentYear}-${currentMonth.toString().padStart(2,'0')}-15`,
-            group: transactionListType === 'expenses' ? 'Despesas Fixas' : undefined
+            group: transactionListType === 'expenses' ? 'Despesas Fixas' : null
         };
         handleEditTransaction(newT);
     };
@@ -1361,17 +1480,6 @@ const App: React.FC = () => {
                 <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-teal-100/30 blur-[120px] rounded-full -z-10"></div>
                 <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-100/30 blur-[100px] rounded-full -z-10"></div>
 
-                <Header 
-                    month={currentMonth} 
-                    year={currentYear} 
-                    balance={checkIn.isDone ? balance : 0}
-                    bankReserves={bankReserves}
-                    setBankReserves={handleUpdateReserves}
-                    checkInDate={checkIn.date}
-                    onMonthChange={handleMonthChange}
-                    onSync={() => saveData(monthData, currentYear, currentMonth)}
-                    syncStatus={syncStatus}
-                />
 
                 <Sidebar 
                     isOpen={sidebarOpen} 

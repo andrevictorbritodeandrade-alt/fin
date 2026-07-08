@@ -74,7 +74,7 @@ export const generateMonthData = (year: number, month: number): MonthData => {
     // Base Incomes
     const newIncomes: Transaction[] = [
         { id: `inc_m_${year}_${month}`, description: marcellySalaryDesc, amount: 3436.22, paid: isJan2026 || isApr2026OrMay2026, date: marcellySalaryDate, dueDate: marcellySalaryDate, category: 'Salário' },
-        { id: `inc_a_${year}_${month}`, description: andreSalaryDesc, amount: (year === 2026 && month >= 7) || (year > 2026) ? 3100.00 : 3436.22, paid: isJan2026 || isApr2026OrMay2026, date: andreSalaryDate, dueDate: andreSalaryDate, category: 'Salário' },
+        { id: `inc_a_${year}_${month}`, description: andreSalaryDesc, amount: (year === 2026 && month >= 7) || (year > 2026) ? 3334.00 : 3436.22, paid: isJan2026 || isApr2026OrMay2026, date: andreSalaryDate, dueDate: andreSalaryDate, category: 'Salário' },
         { id: `inc_mum_m_${year}_${month}`, description: 'MUMBUCA MARCELLY', amount: 598.00, paid: isJan2026, date: mumbucaDate, category: 'Mumbuca' }
     ];
 
@@ -136,7 +136,7 @@ export const generateMonthData = (year: number, month: number): MonthData => {
         { description: "CONTA DA CLARO ANDRÉ", amount: 0, category: "Moradia", day: 5, group: 'MORADIA' },
         { description: "SEGURO DO CARRO", amount: 143.00, category: "Moradia", day: 20, group: 'MORADIA' },
         { description: "CONTA DA VIVO MARCELLY", amount: 66.60, category: "Moradia", day: 23, group: 'MORADIA' },
-        { description: "CARTÃO DO IAGO", amount: 1819.22, category: "Iago", day: 7, group: 'IAGO' },
+        { description: "CARTÃO DO IAGO", amount: 1819.22, category: "Iago", day: 7, group: 'IAGO (CARTÃO NUBANK)' },
         { description: "REMÉDIOS DO ANDRÉ", amount: 400.00, category: "Saúde", day: 10, group: 'MORADIA' }
     ];
 
@@ -177,15 +177,17 @@ export const generateMonthData = (year: number, month: number): MonthData => {
 
         // Cartão do Itaú do André is always 100 reais starting June 2026
         if (c.description.toUpperCase().includes("CARTÃO DO ITAÚ DO ANDRÉ") || c.description.toUpperCase().includes("CARTAO DO ITAU DO ANDRE")) {
-            if (year === 2026 && month >= 6) {
-                finalAmount = 100.00;
-            }
+            if (year === 2026 && month === 7) {
+                    finalAmount = 200.00;
+                } else if (year === 2026 && month >= 6) {
+                    finalAmount = 100.00;
+                }
         }
 
         // Cartão do Iago is 430.00 only for July 2026 specifically
         if (c.description.toUpperCase() === "CARTÃO DO IAGO") {
             if (year === 2026 && month === 7) {
-                finalAmount = 430.00;
+                finalAmount = 1204.00;
             }
         }
 
