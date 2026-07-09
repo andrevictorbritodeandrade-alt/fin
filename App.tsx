@@ -6,9 +6,11 @@ import SummaryCard from './components/SummaryCard';
 import TransactionList from './components/TransactionList';
 import Statistics from './components/Statistics';
 import Settlements from './components/Settlements';
+import FlightPlan from './components/FlightPlan';
 import EditTransactionModal from './components/EditTransactionModal';
 import FinancialHealthWidget from './components/FinancialHealthWidget';
 import DailyBalanceTracker from './components/DailyBalanceTracker';
+import Header from './components/Header';
 import { MonthData, TransactionType, Transaction, FinancialProjection, DebtSettlement, DailyBalanceLog } from './types';
 import { generateMonthData, getStorageKey } from './utils/financeUtils';
 import { db, auth, isConfigured, onAuthStateChanged, signInAnonymously } from './services/firebaseConfig';
@@ -72,7 +74,7 @@ const App: React.FC = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [monthData, setMonthData] = useState<MonthData | null>(null);
-    const [view, setView] = useState<'home' | 'transactions' | 'statistics' | 'settlements'>('home');
+    const [view, setView] = useState<'home' | 'transactions' | 'statistics' | 'settlements' | 'flightPlan'>('home');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [syncStatus, setSyncStatus] = useState<'offline' | 'syncing' | 'online'>('offline');
     const [transactionListType, setTransactionListType] = useState<TransactionType>('expenses');
@@ -617,6 +619,14 @@ const App: React.FC = () => {
                                 amount: 3436.22,
                                 date: "2026-06-26",
                                 dueDate: "2026-06-26"
+                            };
+                        }
+                        if (desc.includes("1ª PARCELA 13º MARCELLY") || desc.includes("1A PARCELA 13O MARCELLY") || desc.includes("13º MARCELLY")) {
+                            return {
+                                ...i,
+                                paid: true,
+                                paidAt: "2026-06-26T12:00:00Z",
+                                userModifiedPaid: true
                             };
                         }
                         return i;
@@ -1451,27 +1461,34 @@ const App: React.FC = () => {
     return (
         <div className="flex h-screen w-full bg-[#f0fdf4] text-slate-900 font-sans overflow-hidden">
             {/* Bottom Navigation - Fixed and styled to match screenshot */}
-            <nav className="fixed bottom-0 left-0 right-0 h-16 lg:h-20 bg-white/95 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-2 lg:px-8 z-[100] shadow-[0_-8px_30px_rgb(0,0,0,0.04)]">
+            <nav className="fixed bottom-0 left-0 right-0 h-16 lg:h-20 bg-white/95 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around px-1 lg:px-8 z-[100] shadow-[0_-8px_30px_rgb(0,0,0,0.04)] gap-1">
                 <button 
                     onClick={() => { setView('home'); setActiveTab('overview'); }}
-                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-24 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'home' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-20 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'home' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
                 >
                     <HomeIcon size={18} className="lg:w-5 lg:h-5" />
-                    <span className="text-[10px] lg:text-sm uppercase tracking-tighter">Visão</span>
+                    <span className="text-[9px] lg:text-sm uppercase tracking-tighter">Visão</span>
                 </button>
                 <button 
                     onClick={() => { setView('transactions'); }}
-                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-24 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'transactions' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-20 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'transactions' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
                 >
                     <ShoppingBag size={18} className="lg:w-5 lg:h-5" />
-                    <span className="text-[10px] lg:text-sm uppercase tracking-tighter">Extrato</span>
+                    <span className="text-[9px] lg:text-sm uppercase tracking-tighter">Extrato</span>
                 </button>
                 <button 
                     onClick={() => { setView('statistics'); }}
-                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-24 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'statistics' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-20 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'statistics' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
                 >
                     <TrendingUp size={18} className="lg:w-5 lg:h-5" />
-                    <span className="text-[10px] lg:text-sm uppercase tracking-tighter">Relatórios</span>
+                    <span className="text-[9px] lg:text-sm uppercase tracking-tighter">Relatórios</span>
+                </button>
+                <button 
+                    onClick={() => { setView('flightPlan'); }}
+                    className={`flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 w-20 lg:w-auto h-12 lg:h-auto rounded-xl transition-all font-black ${view === 'flightPlan' ? 'bg-slate-900 text-white shadow-xl shadow-slate-900/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                >
+                    <Target size={18} className="lg:w-5 lg:h-5" />
+                    <span className="text-[9px] lg:text-sm uppercase tracking-tighter">Plano de Voo</span>
                 </button>
             </nav>
 
@@ -1521,6 +1538,18 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                <Header 
+                    month={currentMonth}
+                    year={currentYear}
+                    balance={balance}
+                    bankReserves={bankReserves}
+                    setBankReserves={handleUpdateReserves}
+                    checkInDate={checkIn.date}
+                    onMonthChange={handleMonthChange}
+                    onSync={() => monthData && saveData(monthData, currentYear, currentMonth)}
+                    syncStatus={syncStatus}
+                />
 
                 <main className="flex-1 overflow-y-auto p-4 lg:p-8 pb-20 scroll-smooth relative">
                     <AnimatePresence mode="wait">
@@ -1996,6 +2025,19 @@ const App: React.FC = () => {
                                 className="w-full flex flex-col gap-8 max-w-7xl mx-auto"
                             >
                                 <Statistics monthData={monthData} currentMonth={currentMonth} currentYear={currentYear} />
+                            </motion.div>
+                        )}
+
+                        {view === 'flightPlan' && (
+                            <motion.div
+                                key="flightPlan"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.5 }}
+                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto animate-slide-up"
+                            >
+                                <FlightPlan monthData={monthData} />
                             </motion.div>
                         )}
 

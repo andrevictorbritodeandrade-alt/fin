@@ -88,7 +88,7 @@ export const generateMonthData = (year: number, month: number): MonthData => {
     if (month === 7) {
         const amount13 = 1718.11; 
         newIncomes.push(
-            { id: `inc_13_1_m_${year}`, description: '1ª PARCELA 13º MARCELLY', amount: amount13, paid: false, date: `${prevYear}-06-26`, category: 'Salário' }
+            { id: `inc_13_1_m_${year}`, description: '1ª PARCELA 13º MARCELLY', amount: amount13, paid: year === 2026 ? true : false, date: `${prevYear}-06-26`, category: 'Salário' }
         );
         if (year !== 2026) {
             newIncomes.push(
