@@ -998,6 +998,7 @@ const App: React.FC = () => {
                 addOrUpdateIagoExpense("PRIMEIRA ESTADIA EM SALVADOR", 30.95, "primeira_salvador", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("ESTADIA EM ARACAJU", 52.17, "aracaju", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("SEGUNDA ESTADIA EM SALVADOR", 92.85, "segunda_salvador", { current: iagoNewInst, total: 6 });
+                addOrUpdateIagoExpense("PASSAGENS AÉREAS", 232.33, "passagens_aereas", { current: iagoNewInst, total: 6 });
             }
             
             // Cleanup old variables

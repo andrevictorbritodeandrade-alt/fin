@@ -97,7 +97,7 @@ const DEBT_ITEMS_CONFIG: ThirdPartyDebt[] = [
   { name: 'Passeio de Safari', amount: 571.60, totalAmount: 3429.60, installments: 6, startYear: 2026, startMonth: 3, card: 'JADY' },
 
   // IAGO (NUBANK)
-  { name: 'Passagens Aéreas (697 + 697)', amount: 232.33, totalAmount: 1394.00, installments: 6, startYear: 2026, startMonth: 7, card: 'IAGO (NUBANK)' },
+  { name: 'Passagens Aéreas (697 + 697)', amount: 232.33, totalAmount: 1394.00, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
   { name: 'Abastecimento', amount: 310.00, totalAmount: 310.00, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
   { name: 'Estadia em Maragogi', amount: 37.61, totalAmount: 225.66, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
   { name: 'Estadia em Aracaju', amount: 52.17, totalAmount: 313.02, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
@@ -172,6 +172,11 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
     monthsData: Array<{ month: number; name: string; sum: number; items: string[] }>;
   } | null>(null);
   const [showAverageDetails, setShowAverageDetails] = useState(false);
+
+  // Estratégia de Emergência - Viagem Nordeste & Fatura Inter
+  const [interLimit, setInterLimit] = useState<number>(752);
+  const [interCurrentBill, setInterCurrentBill] = useState<number>(548);
+  const [savingsReductionRate, setSavingsReductionRate] = useState<number>(100); // 100% means reduce savings to 0% to free maximum cash (highly recommended)
 
   // Auto animation mount
   const [montado, setMontado] = useState(false);
@@ -340,26 +345,52 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
   const poupancaMensal = numRenda * 0.3; 
   const disponivelParaViver = numRenda * 0.7; 
 
+  // Dynamic calculations based on timelineIndex
+  const selectedMonthConfig = TIMELINE_MONTHS[timelineIndex];
+  
+  const activeDebtsForSelectedMonth = DEBT_ITEMS_CONFIG.map(item => {
+    const inst = getInstallmentForMonth(item, selectedMonthConfig.year, selectedMonthConfig.month);
+    return inst ? inst.amount : 0;
+  }).reduce((sum, curr) => sum + curr, 0);
+
   const totalContas = contas.reduce((acc, curr) => acc + parseNum(curr.valor), 0);
-  const sobraDepoisContas = disponivelParaViver - totalContas;
+  const custoTotalMes = totalContas + activeDebtsForSelectedMonth;
+  const sobraDepoisContas = disponivelParaViver - custoTotalMes;
   
   const numDivida = parseNum(divida);
   const numParcela = parseNum(parcela);
   const pagamentoRealDivida = Math.min(numParcela, Math.max(0, sobraDepoisContas));
   
-  const ultrapassouLimite = totalContas > disponivelParaViver;
+  const ultrapassouLimite = custoTotalMes > disponivelParaViver;
   const numMeta = parseNum(metaViagem);
 
   // Projeção a partir do próximo mês até Dezembro (agosto, set, out, nov, dez) 
-  const meses = ['Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const mesesConfig = [
+    { name: 'Agosto', month: 8, year: 2026 },
+    { name: 'Setembro', month: 9, year: 2026 },
+    { name: 'Outubro', month: 10, year: 2026 },
+    { name: 'Novembro', month: 11, year: 2026 },
+    { name: 'Dezembro', month: 12, year: 2026 }
+  ];
   let dividaAtual = numDivida;
   let poupancaAcumulada = 0;
   let mesAtingidoIndex = -1;
 
-  const simulacaoDados = meses.map((mes, index) => {
+  const simulacaoDados = mesesConfig.map((item, index) => {
     poupancaAcumulada += poupancaMensal;
+    
+    // Calculate third-party debt for this specific month
+    const debtsForMonth = DEBT_ITEMS_CONFIG.map(debt => {
+      const inst = getInstallmentForMonth(debt, item.year, item.month);
+      return inst ? inst.amount : 0;
+    }).reduce((sum, curr) => sum + curr, 0);
+
+    const custoTotalParaOMes = totalContas + debtsForMonth;
+    const sobraDoMes = Math.max(0, disponivelParaViver - custoTotalParaOMes);
+    const pagamentoDoMes = Math.min(numParcela, sobraDoMes);
+
     if (dividaAtual > 0) {
-      dividaAtual -= pagamentoRealDivida;
+      dividaAtual -= pagamentoDoMes;
       if (dividaAtual < 0) dividaAtual = 0;
     }
 
@@ -369,7 +400,16 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
     // Calcula o percentual de preenchimento da meta para a barra de progresso visual
     const percentualMeta = numMeta > 0 ? Math.min(100, (poupancaAcumulada / numMeta) * 100) : 0;
 
-    return { mes, poupanca: poupancaAcumulada, dividaRestante: dividaAtual, atingiuMeta: atingiu, percentualMeta };
+    return { 
+      mes: item.name, 
+      poupanca: poupancaAcumulada, 
+      dividaRestante: dividaAtual, 
+      atingiuMeta: atingiu, 
+      percentualMeta,
+      debtsForMonth,
+      custoTotalParaOMes,
+      sobraDoMes
+    };
   });
 
   // Call Gemini for personalized AI analysis
@@ -382,7 +422,7 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
 - Dívida Total Inicial: ${formatar(numDivida)}
 - Parcela de Dívida Planejada: ${formatar(numParcela)} (Pagamento real possível das sobras: ${formatar(pagamentoRealDivida)})
 - Destino de Viagem (Janeiro): ${formatar(numMeta)}
-- Prognóstico da viagem: ${mesAtingidoIndex !== -1 ? `Meta atingida em ${meses[mesAtingidoIndex]}!` : 'Meta de poupança INCOMPLETA até Dezembro.'}
+- Prognóstico da viagem: ${mesAtingidoIndex !== -1 ? `Meta atingida em ${mesesConfig[mesAtingidoIndex].name}!` : 'Meta de poupança INCOMPLETA até Dezembro.'}
 - Dívida restante em Dezembro: ${formatar(simulacaoDados[4].dividaRestante)}
       `;
 
@@ -616,13 +656,28 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
               <div className="flex items-center gap-3">
                 <div className="bg-blue-100 p-2.5 rounded-xl"><Receipt className="w-6 h-6 text-blue-600" /></div>
-                <h2 className="text-xl font-bold text-slate-800">Custo de Vida (Dentro dos 70%)</h2>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Custo de Vida (Dentro dos 70%)</h2>
+                  <p className="text-xs text-slate-500 font-medium">Contas Fixas + Cartões de Terceiros no Mês</p>
+                </div>
               </div>
               <div className="text-left md:text-right bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Comprometido</p>
-                <p className={`text-xl font-black ${ultrapassouLimite ? 'text-red-500' : 'text-blue-600'}`}>
-                  {formatar(totalContas)}
+                <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total {selectedMonthConfig.name}</p>
+                <p className={`text-xl font-black ${ultrapassouLimite ? 'text-red-500 animate-pulse' : 'text-blue-600'}`}>
+                  {formatar(custoTotalMes)}
                 </p>
+              </div>
+            </div>
+
+            {/* DETALHAMENTO DO CUSTO DO MÊS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+              <div className="text-xs">
+                <span className="text-slate-400 font-medium block">Contas Fixas Padrão:</span>
+                <span className="text-sm font-bold text-slate-700">{formatar(totalContas)}</span>
+              </div>
+              <div className="text-xs">
+                <span className="text-slate-400 font-medium block">Cartões de Terceiros ({selectedMonthConfig.name}):</span>
+                <span className="text-sm font-bold text-indigo-700">+{formatar(activeDebtsForSelectedMonth)}</span>
               </div>
             </div>
 
@@ -630,14 +685,14 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
               {contas.map((conta) => (
                 <div key={conta.id} className="flex gap-3 items-center">
                   <input
-                    type="text"
-                    value={conta.nome}
-                    onChange={(e) => {
-                      handleUpdateConta(conta.id, 'nome', e.target.value);
-                      setSimulado(false);
-                    }}
-                    placeholder="Ex: Aluguel, Luz..."
-                    className="flex-[2] w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 focus:bg-white transition-all font-medium text-sm"
+                     type="text"
+                     value={conta.nome}
+                     onChange={(e) => {
+                       handleUpdateConta(conta.id, 'nome', e.target.value);
+                       setSimulado(false);
+                     }}
+                     placeholder="Ex: Aluguel, Luz..."
+                     className="flex-[2] w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-400 focus:bg-white transition-all font-medium text-sm"
                   />
                   <div className="relative flex-1">
                     <span className="absolute left-3 top-3 text-slate-400 font-medium text-xs">R$</span>
@@ -678,22 +733,211 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
 
             {/* Barra de Consumo dos 70% */}
             {numRenda > 0 && (
-              <div className="mt-8 pt-6 border-t border-slate-100">
-                <div className="flex justify-between text-sm font-semibold mb-3">
-                  <span className="text-slate-500">Uso do limite (70%)</span>
+              <div className="mt-8 pt-6 border-t border-slate-100 space-y-3">
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-slate-500">Uso do limite de 70% ({formatar(disponivelParaViver)})</span>
                   <span className={ultrapassouLimite ? 'text-red-500 font-bold' : 'text-slate-600'}>
                     {ultrapassouLimite ? 'Limite Excedido!' : `Sobra: ${formatar(sobraDepoisContas)}`}
                   </span>
                 </div>
-                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                
+                <div className="h-3.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner relative">
                   <div 
-                    className={`h-full transition-all duration-700 ease-out ${ultrapassouLimite ? 'bg-red-500' : 'bg-blue-400'}`}
-                    style={{ width: `${Math.min(100, (totalContas / disponivelParaViver) * 100)}%` }}
+                    className={`h-full transition-all duration-700 ease-out ${
+                      ultrapassouLimite ? 'bg-gradient-to-r from-red-500 to-rose-600 animate-pulse' : 'bg-gradient-to-r from-blue-400 to-indigo-500'
+                    }`}
+                    style={{ width: `${Math.min(100, (custoTotalMes / disponivelParaViver) * 100)}%` }}
                   ></div>
                 </div>
+
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span className="text-slate-400">Total Comprometido: {((custoTotalMes / disponivelParaViver) * 100).toFixed(0)}% do limite</span>
+                  <span className={ultrapassouLimite ? 'text-red-500' : 'text-emerald-600'}>
+                    {ultrapassouLimite 
+                      ? `Estourou por ${formatar(custoTotalMes - disponivelParaViver)}`
+                      : 'Custo de Vida sob controle!'
+                    }
+                  </span>
+                </div>
+
+                {ultrapassouLimite && (
+                  <div className="p-3 bg-red-50 rounded-xl border border-red-100 text-[11px] text-red-700 leading-relaxed flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-500 animate-bounce" />
+                    <span>
+                      <strong>Alerta de Orçamento:</strong> Em {selectedMonthConfig.fullName}, suas contas mais parcelas excederam os 70% da sua renda. Você precisará temporariamente reduzir a poupança do mês ou apertar o cinto nas compras avulsas para equilibrar as contas sem entrar no rotativo.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </section>
+
+          {/* CARD DE ESTRATÉGIA DE EMERGÊNCIA: VIAGEM NORDESTE & FATURA INTER */}
+          {numRenda > 0 && (
+            <section className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-6 md:p-8 rounded-[2rem] shadow-xl border border-indigo-900/40 relative overflow-hidden transition-all hover:shadow-2xl space-y-6">
+              {/* Background ambient light */}
+              <div className="absolute -right-16 -top-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl"></div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="bg-indigo-500/20 p-3 rounded-2xl border border-indigo-400/20">
+                    <PlaneTakeoff className="w-8 h-8 text-indigo-300 animate-bounce" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tight text-slate-100 flex items-center gap-2">
+                      Plano de Ação de Emergência: Viagem Nordeste
+                    </h2>
+                    <p className="text-xs text-indigo-200/70 font-medium">Sua viagem é dia 16/Julho. Crie uma estratégia para não se afogar em dívidas!</p>
+                  </div>
+                </div>
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl self-start sm:self-center shrink-0">
+                  Urgência Financeira
+                </span>
+              </div>
+
+              {/* GRID DO DIAGNÓSTICO E SOLUÇÃO */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                
+                {/* COLUNA 1: DIAGNÓSTICO DA SITUAÇÃO DO INTER */}
+                <div className="p-5 rounded-2xl bg-slate-800/50 border border-slate-700/40 space-y-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    1. Diagnóstico do Cartão Inter (Sua Crise):
+                  </span>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-700/30">
+                      <span className="text-slate-300">Seu Limite Total no Inter:</span>
+                      <span className="font-extrabold text-slate-100">{formatar(interLimit)}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-700/30">
+                      <span className="text-slate-300">Fatura Atual Comprometida (Mês que vem):</span>
+                      <span className="font-extrabold text-rose-300">{formatar(interCurrentBill)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-300 font-bold">Limite Restante Livre para Viagem:</span>
+                      <span className="font-black text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full">
+                        {formatar(interLimit - interCurrentBill)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-[11px] text-rose-200 leading-relaxed space-y-1">
+                    <div className="flex items-center gap-1 font-bold text-rose-300">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>Risco de Fatura "Vir Rasgando"</span>
+                    </div>
+                    <p className="opacity-90">
+                      Com apenas R$ 204,00 livres, tentar passar toda a viagem no cartão vai estourar o limite e forçar juros de rotativo ou cheque especial. <strong>Você precisa de dinheiro vivo livre imediatamente!</strong>
+                    </p>
+                  </div>
+                </div>
+
+                {/* COLUNA 2: SIMULADOR DE LIBERAÇÃO DE CAIXA */}
+                <div className="p-5 rounded-2xl bg-indigo-950/40 border border-indigo-900/50 space-y-4">
+                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider block">
+                    2. Simulador de Alocação (Sua Solução):
+                  </span>
+
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-indigo-100/80 leading-relaxed">
+                      A saída recomendada pela IA para pagar a fatura inteira e cobrir a viagem é <strong>pausar temporariamente a poupança de 30% em Julho e Agosto</strong>. Escolha sua estratégia abaixo:
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setSavingsReductionRate(100)}
+                        className={`px-2 py-2.5 rounded-xl text-[10px] font-bold border transition-all ${
+                          savingsReductionRate === 100
+                            ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20'
+                            : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <span className="block text-[8px] opacity-75">RECOMENDADO</span>
+                        0% Poupança
+                      </button>
+                      <button
+                        onClick={() => setSavingsReductionRate(66.6)}
+                        className={`px-2 py-2.5 rounded-xl text-[10px] font-bold border transition-all ${
+                          savingsReductionRate === 66.6
+                            ? 'bg-amber-600 border-amber-500 text-white shadow-lg shadow-amber-600/20'
+                            : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <span className="block text-[8px] opacity-75">CONSERVADOR</span>
+                        10% Poupança
+                      </button>
+                      <button
+                        onClick={() => setSavingsReductionRate(0)}
+                        className={`px-2 py-2.5 rounded-xl text-[10px] font-bold border transition-all ${
+                          savingsReductionRate === 0
+                            ? 'bg-rose-700 border-rose-600 text-white shadow-lg shadow-rose-700/20'
+                            : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800/80'
+                        }`}
+                      >
+                        <span className="block text-[8px] opacity-75">ARRISCADO</span>
+                        30% Poupança
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* CÁLCULO DYNAMIC DO DINHEIRO LIBERADO */}
+                  {(() => {
+                    const savingsFreed = poupancaMensal * (savingsReductionRate / 100);
+                    const netAfterBill = savingsFreed - interCurrentBill;
+
+                    return (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-300">Dinheiro Líquido Liberado no Mês:</span>
+                          <span className="font-extrabold text-emerald-400">{formatar(savingsFreed)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs pb-1">
+                          <span className="text-slate-300">Após quitar a fatura do Inter ({formatar(interCurrentBill)}):</span>
+                          <span className={`font-black px-2.5 py-0.5 rounded-lg ${netAfterBill >= 0 ? 'text-emerald-300 bg-emerald-500/10' : 'text-rose-300 bg-rose-500/10'}`}>
+                            {netAfterBill >= 0 ? `${formatar(netAfterBill)} livres` : `${formatar(Math.abs(netAfterBill))} de déficit`}
+                          </span>
+                        </div>
+
+                        {savingsReductionRate === 100 ? (
+                          <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-[10px] text-emerald-200 leading-relaxed">
+                            🎉 <strong>Plano Perfeito:</strong> Ao pausar a poupança em julho/agosto, você gera <strong>{formatar(savingsFreed)}</strong> limpos em caixa! Você quita os R$ 548,00 do Inter e viaja com <strong>{formatar(netAfterBill)} em dinheiro vivo</strong> para comer e se divertir, sem dever nada a ninguém!
+                          </div>
+                        ) : savingsReductionRate === 66.6 ? (
+                          <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-[10px] text-amber-200 leading-relaxed">
+                            ⚠️ <strong>Plano Apertado:</strong> Sobram apenas <strong>{formatar(netAfterBill)}</strong> após quitar a fatura. Pode faltar dinheiro para despesas na viagem se houver imprevistos. Reduzir a 0% temporariamente oferece muito mais segurança.
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 text-[10px] text-rose-200 leading-relaxed">
+                            ❌ <strong>Plano Inviável:</strong> Insistir em guardar os 30% agora significa viajar sem nenhum centavo no bolso, estourar o limite de R$ 204,00 do Inter e entrar no rotativo. <strong>Não tente rodar igual peru!</strong> Priorize o caixa agora.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* DIRETRIZES DE EXECUÇÃO */}
+              <div className="bg-slate-800/40 p-4 rounded-2xl border border-slate-700/30 text-xs text-slate-300 space-y-3 relative z-10">
+                <span className="font-bold text-indigo-300 block">Sua Estratégia de Voo para esta Semana (16/Julho):</span>
+                <ul className="space-y-2 text-[11px] list-disc pl-4 text-slate-300/90 leading-relaxed">
+                  <li>
+                    <strong className="text-white">Pague a Fatura Cheia no Dia do Vencimento:</strong> Use o dinheiro da poupança que você pausou para pagar os R$ 548,00 inteiros. Nunca pague o mínimo para não cair no rotativo de 400% ao ano!
+                  </li>
+                  <li>
+                    <strong className="text-white">Viaje com Dinheiro Vivo (PIX/Débito):</strong> Use o saldo líquido de <strong>{formatar(poupancaMensal * (savingsReductionRate / 100) - interCurrentBill)}</strong> liberado para pagar suas refeições, passeios e lembranças no Nordeste. Evite usar o crédito.
+                  </li>
+                  <li>
+                    <strong className="text-white">Regra de Retorno Seguro (Setembro):</strong> Esta pausa é uma exceção para evitar a crise de crédito. Em setembro, assim que as contas estabilizarem e a viagem tiver acabado, você volta a separar os 30% cheios para garantir a viagem oficial em Janeiro de 2027!
+                  </li>
+                </ul>
+              </div>
+            </section>
+          )}
 
           {/* CARD NOVO: DIRETRIZES DE COMPRAS E LIMITE ROTATIVO */}
           {numRenda > 0 && (
@@ -1196,7 +1440,7 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
                       Alvo Travado! 🎯
                     </h2>
                     <p className="text-emerald-50 text-lg md:text-xl leading-relaxed">
-                      Você terá <strong>{formatar(numMeta)}</strong> na mão em <strong className="bg-white text-emerald-700 px-4 py-1.5 rounded-xl uppercase tracking-wider shadow-sm mx-1">{meses[mesAtingidoIndex]}</strong>. <br className="hidden md:block"/>
+                      Você terá <strong>{formatar(numMeta)}</strong> na mão em <strong className="bg-white text-emerald-700 px-4 py-1.5 rounded-xl uppercase tracking-wider shadow-sm mx-1">{mesesConfig[mesAtingidoIndex].name}</strong>. <br className="hidden md:block"/>
                       Compre as passagens neste exato mês. Essa antecedência é o segredo para não pagar caro.
                     </p>
                   </div>

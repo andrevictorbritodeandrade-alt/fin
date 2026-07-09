@@ -265,7 +265,7 @@ export const generateMonthData = (year: number, month: number): MonthData => {
         { desc: "REMÉDIOS (MARCIA BRITO)", totalAmount: 246.09, cat: "Saúde", day: 28, installments: 3, sY: 2026, sM: 5, group: 'MARCIA BRITO' },
         { desc: "ALINHAMENTO DO CARRO", totalAmount: 330.00, cat: "Transporte", day: 12, installments: 2, sY: 2026, sM: 7, group: 'MARCIA BRITO' },
         { desc: "EMPRÉSTIMO PARA PAGAR AS CONTAS DE JUNHO", totalAmount: 1944.00, cat: "Dívidas", day: 20, installments: 4, sY: 2026, sM: 6, group: 'MARCIA BRITO' },
-        { desc: "PASSAGENS AÉREAS (IAGO)", totalAmount: 1394.00, cat: "Lazer", day: 7, installments: 6, sY: 2026, sM: 7, group: 'IAGO (CARTÃO NUBANK)' }
+        { desc: "PASSAGENS AÉREAS (IAGO)", totalAmount: 1394.00, cat: "Lazer", day: 7, installments: 6, sY: 2026, sM: 8, group: 'IAGO (CARTÃO NUBANK)' }
     ];
 
 
