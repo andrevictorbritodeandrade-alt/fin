@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Trash2, Calculator, PlaneTakeoff, AlertCircle, 
   CheckCircle2, Wallet, TrendingDown, Target, ArrowRight,
-  PiggyBank, Receipt, MapPin, Sparkles, BrainCircuit, RefreshCw, Loader2, HelpCircle
+  PiggyBank, Receipt, MapPin, Sparkles, BrainCircuit, RefreshCw, Loader2, HelpCircle,
+  CreditCard, ShoppingBag
 } from 'lucide-react';
 import { MonthData } from '../types';
 import { formatCurrency, generateMonthData, getStorageKey } from '../utils/financeUtils';
@@ -50,6 +51,105 @@ const getFixedContas = (mData: MonthData | null): Conta[] => {
   });
 };
 
+interface ThirdPartyDebt {
+  name: string;
+  amount: number;
+  totalAmount: number;
+  installments: number;
+  startYear: number;
+  startMonth: number;
+  card: 'MARCIA BRITO' | 'MARCIA BISPO' | 'LILI TORRES' | 'REBECCA BRITO' | 'JADY' | 'IAGO (NUBANK)';
+  isPausedInJune?: boolean;
+  isVariableOnlyInAugust?: boolean;
+}
+
+const DEBT_ITEMS_CONFIG: ThirdPartyDebt[] = [
+  // MARCIA BRITO
+  { name: 'Alinhamento do Carro', amount: 165.00, totalAmount: 330.00, installments: 2, startYear: 2026, startMonth: 7, card: 'MARCIA BRITO' },
+  { name: 'Empréstimo p/ Contas de Junho', amount: 486.00, totalAmount: 1944.00, installments: 4, startYear: 2026, startMonth: 6, card: 'MARCIA BRITO' },
+  { name: 'Faculdade da Marcelly', amount: 202.68, totalAmount: 2026.80, installments: 10, startYear: 2025, startMonth: 12, card: 'MARCIA BRITO' },
+  { name: 'Filhão Autopeças', amount: 40.00, totalAmount: 120.00, installments: 3, startYear: 2026, startMonth: 5, card: 'MARCIA BRITO' },
+  { name: 'Kr Autopeças', amount: 41.57, totalAmount: 291.00, installments: 7, startYear: 2026, startMonth: 5, card: 'MARCIA BRITO' },
+  { name: 'Mão de Obra do Davi', amount: 124.27, totalAmount: 372.82, installments: 3, startYear: 2026, startMonth: 5, card: 'MARCIA BRITO' },
+  { name: 'Passagens Aéreas Joburg x Cape Town', amount: 312.00, totalAmount: 1560.00, installments: 5, startYear: 2026, startMonth: 3, card: 'MARCIA BRITO' },
+  { name: 'Passagens de Ônibus Rio x SP', amount: 87.60, totalAmount: 438.00, installments: 5, startYear: 2026, startMonth: 3, card: 'MARCIA BRITO' },
+  { name: 'Reforma do Sofá de Caxias', amount: 115.00, totalAmount: 575.00, installments: 5, startYear: 2026, startMonth: 4, card: 'MARCIA BRITO' },
+  { name: 'Remédio (Marcia Brito)', amount: 82.03, totalAmount: 246.09, installments: 3, startYear: 2026, startMonth: 5, card: 'MARCIA BRITO' },
+  { name: 'Renegociar Carrefour', amount: 312.50, totalAmount: 5000.00, installments: 16, startYear: 2025, startMonth: 12, card: 'MARCIA BRITO' },
+
+  // MARCIA BISPO
+  { name: 'Celular da Marcelly', amount: 385.74, totalAmount: 4628.88, installments: 12, startYear: 2026, startMonth: 3, card: 'MARCIA BISPO' },
+  { name: 'Empréstimo com Marcia Bispo', amount: 100.00, totalAmount: 400.00, installments: 4, startYear: 2026, startMonth: 4, card: 'MARCIA BISPO', isPausedInJune: true },
+
+  // LILI TORRES
+  { name: 'Compras da Marcelly na Shein', amount: 118.00, totalAmount: 236.00, installments: 2, startYear: 2026, startMonth: 6, card: 'LILI TORRES' },
+  { name: 'Empréstimo com Lili', amount: 800.00, totalAmount: 4000.00, installments: 5, startYear: 2026, startMonth: 5, card: 'LILI TORRES' },
+  { name: 'Estadia em Cidade do Cabo', amount: 239.40, totalAmount: 1197.00, installments: 5, startYear: 2026, startMonth: 3, card: 'LILI TORRES' },
+  { name: 'Estadia em Johanesburgo', amount: 272.79, totalAmount: 1363.93, installments: 5, startYear: 2026, startMonth: 3, card: 'LILI TORRES' },
+  { name: 'Passagens Aéreas SP x Joburg', amount: 504.87, totalAmount: 4038.96, installments: 8, startYear: 2026, startMonth: 1, card: 'LILI TORRES' },
+
+  // REBECCA BRITO
+  { name: 'Cidadania Portuguesa', amount: 140.00, totalAmount: 5180.00, installments: 37, startYear: 2024, startMonth: 11, card: 'REBECCA BRITO' },
+
+  // JADY
+  { name: 'Compra de Maquiagem', amount: 116.00, totalAmount: 232.00, installments: 2, startYear: 2026, startMonth: 6, card: 'JADY' },
+  { name: 'Compra de Tênis', amount: 309.99, totalAmount: 619.98, installments: 2, startYear: 2026, startMonth: 6, card: 'JADY' },
+  { name: 'Passeio de Safari', amount: 571.60, totalAmount: 3429.60, installments: 6, startYear: 2026, startMonth: 3, card: 'JADY' },
+
+  // IAGO (NUBANK)
+  { name: 'Passagens Aéreas (697 + 697)', amount: 232.33, totalAmount: 1394.00, installments: 6, startYear: 2026, startMonth: 7, card: 'IAGO (NUBANK)' },
+  { name: 'Abastecimento', amount: 310.00, totalAmount: 310.00, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
+  { name: 'Estadia em Maragogi', amount: 37.61, totalAmount: 225.66, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
+  { name: 'Estadia em Aracaju', amount: 52.17, totalAmount: 313.02, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
+  { name: 'Primeira Estadia em Salvador', amount: 30.95, totalAmount: 185.70, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
+  { name: 'Segunda Estadia em Salvador', amount: 92.85, totalAmount: 557.10, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' }
+];
+
+const TIMELINE_MONTHS = [
+  { name: 'Jul/2026', fullName: 'Julho 2026', month: 7, year: 2026 },
+  { name: 'Ago/2026', fullName: 'Agosto 2026', month: 8, year: 2026 },
+  { name: 'Set/2026', fullName: 'Setembro 2026', month: 9, year: 2026 },
+  { name: 'Out/2026', fullName: 'Outubro 2026', month: 10, year: 2026 },
+  { name: 'Nov/2026', fullName: 'Novembro 2026', month: 11, year: 2026 },
+  { name: 'Dez/2026', fullName: 'Dezembro 2026', month: 12, year: 2026 },
+  { name: 'Jan/2027', fullName: 'Janeiro 2027', month: 1, year: 2027 }
+];
+
+const getInstallmentForMonth = (item: ThirdPartyDebt, year: number, month: number) => {
+  let startY = item.startYear;
+  let startM = item.startMonth;
+
+  if (item.isVariableOnlyInAugust) {
+    if (year === 2026 && month === 8) {
+      return { current: 1, total: 1, amount: item.amount, active: true };
+    }
+    return null;
+  }
+
+  // Account for the June 2026 pause for Marcia Bispo loan
+  if (item.card === 'MARCIA BISPO' && item.name.includes('Empréstimo')) {
+    if (year === 2026 && month === 6) {
+      return null; // Paused
+    }
+    if (year > 2026 || (year === 2026 && month > 6)) {
+      startM = item.startMonth + 1; // Shifts July to be parcel 3 instead of 4
+    }
+  }
+
+  // Standard installment calculations
+  const diffMonths = (year - startY) * 12 + (month - startM);
+  if (diffMonths >= 0 && diffMonths < item.installments) {
+    const current = diffMonths + 1;
+    return {
+      current,
+      total: item.installments,
+      amount: item.amount,
+      active: true
+    };
+  }
+  return null;
+};
+
 export default function FlightPlan({ monthData }: FlightPlanProps) {
   const [renda, setRenda] = useState('');
   const [contas, setContas] = useState<Conta[]>(getFixedContas(null));
@@ -58,6 +158,7 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
   const [metaViagem, setMetaViagem] = useState('');
   const [simulado, setSimulado] = useState(false);
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
+  const [timelineIndex, setTimelineIndex] = useState(0);
   
   // AI advice state
   const [aiAdvice, setAiAdvice] = useState<string>('');
@@ -593,6 +694,372 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
               </div>
             )}
           </section>
+
+          {/* CARD NOVO: DIRETRIZES DE COMPRAS E LIMITE ROTATIVO */}
+          {numRenda > 0 && (
+            <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200/60 transition-all hover:shadow-md space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-100 p-2.5 rounded-xl"><Calculator className="w-6 h-6 text-amber-600" /></div>
+                <h2 className="text-xl font-bold text-slate-800">Diretrizes Inteligentes: Compras e Limite Rotativo</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* 1. SEÇÃO CARTÕES ROTATIVOS */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-indigo-500" />
+                      <span className="font-bold text-slate-700 text-sm">Cartões & Dívidas Rotativas</span>
+                    </div>
+                    {/* Dynamic Health Badge */}
+                    {(() => {
+                      const totalCartoes = contas
+                        .filter(c => {
+                          const n = c.nome.toUpperCase();
+                          return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                        })
+                        .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0);
+                      
+                      const pctUso = numRenda > 0 ? (totalCartoes / numRenda) * 100 : 0;
+                      let badgeBg = 'bg-emerald-100 text-emerald-800';
+                      let badgeText = 'Saudável (Até 15%)';
+                      if (pctUso > 15 && pctUso <= 30) {
+                        badgeBg = 'bg-amber-100 text-amber-800';
+                        badgeText = 'Atenção (15% - 30%)';
+                      } else if (pctUso > 30) {
+                        badgeBg = 'bg-rose-100 text-rose-800';
+                        badgeText = 'Risco Alto (>30%)';
+                      }
+                      return (
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg ${badgeBg}`}>
+                          {badgeText}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-end text-xs text-slate-500">
+                      <span>Uso em Cartões Detectado:</span>
+                      <span className="text-sm font-bold text-slate-800">
+                        {formatar(contas
+                          .filter(c => {
+                            const n = c.nome.toUpperCase();
+                            return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                          })
+                          .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0)
+                        )}
+                        <span className="text-xs font-normal text-slate-500 ml-1">
+                          ({(
+                            (contas
+                              .filter(c => {
+                                const n = c.nome.toUpperCase();
+                                return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                              })
+                              .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) / numRenda) * 100
+                          ).toFixed(1)}% da renda)
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="h-2 w-full bg-slate-200/60 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-700 ${
+                          (contas
+                            .filter(c => {
+                              const n = c.nome.toUpperCase();
+                              return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                            })
+                            .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) / numRenda) > 0.3
+                            ? 'bg-red-500' 
+                            : (contas
+                              .filter(c => {
+                                const n = c.nome.toUpperCase();
+                                return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                              })
+                              .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) / numRenda) > 0.15
+                              ? 'bg-amber-500' 
+                              : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(100, (contas
+                          .filter(c => {
+                            const n = c.nome.toUpperCase();
+                            return n.includes('CARTÃO') || n.includes('CARTAO') || n.includes('INTER') || n.includes('ITAÚ') || n.includes('ITAU');
+                          })
+                          .reduce((acc, curr) => acc + (parseFloat(curr.valor) || 0), 0) / numRenda) * 100)}%` }}
+                      ></div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/50 text-[11px]">
+                      <div>
+                        <span className="block text-slate-400 font-semibold uppercase">Limite Seguro (15%)</span>
+                        <span className="font-extrabold text-emerald-600">{formatar(numRenda * 0.15)}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-slate-400 font-semibold uppercase">Teto Máximo (30%)</span>
+                        <span className="font-extrabold text-red-500">{formatar(numRenda * 0.30)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
+                    Comprometer mais de 30% da sua renda conjunta com cartões rotativos limita severamente sua capacidade de poupar para sua viagem de Janeiro.
+                  </p>
+                </div>
+
+                {/* 2. SEÇÃO COMPRAS MENSAIS */}
+                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5 text-emerald-500" />
+                      <span className="font-bold text-slate-700 text-sm">Compras Mensais Recomendadas</span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">
+                      18% da Renda
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/60 shadow-sm flex items-center justify-between">
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Sugestão de Budget</span>
+                      <span className="text-2xl font-black text-slate-800">{formatar(numRenda * 0.18)}</span>
+                    </div>
+                    <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
+                      <ShoppingBag className="w-6 h-6 text-emerald-600" />
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Reservar exatamente **18% da renda** ({formatar(numRenda * 0.18)}) para compras de supermercado, higiene e itens essenciais do lar garante que o restante dos seus 70% fique livre para cobrir os seus custos fixos sem estourar o orçamento.
+                  </p>
+                  
+                  <div className="p-2.5 bg-indigo-50 border border-indigo-100/50 rounded-xl flex gap-2 items-start text-[11px] text-indigo-800">
+                    <AlertCircle className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                    <span>Dica: Monitore os gastos semanais no supermercado buscando manter o limite de **{formatar((numRenda * 0.18) / 4)} por semana**!</span>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+          )}
+
+          {/* PAINEL DE DÍVIDAS DE TERCEIROS E CARTÕES DA FAMÍLIA */}
+          {numRenda > 0 && (() => {
+            const selectedMonthConfig = TIMELINE_MONTHS[timelineIndex];
+            const activeDebtsForMonth = DEBT_ITEMS_CONFIG.map(item => {
+              const inst = getInstallmentForMonth(item, selectedMonthConfig.year, selectedMonthConfig.month);
+              return inst ? { ...item, inst } : null;
+            }).filter(Boolean) as Array<ThirdPartyDebt & { inst: { current: number; total: number; amount: number; active: boolean } }>;
+
+            const cardsList = [
+              { id: 'MARCIA BRITO', name: 'Cartão Márcia Brito (Você usa)', color: 'border-amber-300', bgColor: 'bg-amber-50', textColor: 'text-amber-800', items: [] as typeof activeDebtsForMonth },
+              { id: 'MARCIA BISPO', name: 'Cartão Márcia Bispo', color: 'border-purple-300', bgColor: 'bg-purple-50', textColor: 'text-purple-800', items: [] as typeof activeDebtsForMonth },
+              { id: 'LILI TORRES', name: 'Cartão Lili Torres', color: 'border-teal-300', bgColor: 'bg-teal-50', textColor: 'text-teal-800', items: [] as typeof activeDebtsForMonth },
+              { id: 'REBECCA BRITO', name: 'Cartão Rebecca Brito (Cidadania)', color: 'border-blue-300', bgColor: 'bg-blue-50', textColor: 'text-blue-800', items: [] as typeof activeDebtsForMonth },
+              { id: 'JADY', name: 'Cartão Jady', color: 'border-rose-300', bgColor: 'bg-rose-50', textColor: 'text-rose-800', items: [] as typeof activeDebtsForMonth },
+              { id: 'IAGO (NUBANK)', name: 'Cartão Iago (Nubank)', color: 'border-indigo-300', bgColor: 'bg-indigo-50', textColor: 'text-indigo-800', items: [] as typeof activeDebtsForMonth },
+            ];
+
+            cardsList.forEach(card => {
+              card.items = activeDebtsForMonth.filter(d => d.card === card.id);
+            });
+
+            const totalActiveDebts = activeDebtsForMonth.reduce((acc, curr) => acc + curr.inst.amount, 0);
+
+            const getEndMonthName = (item: ThirdPartyDebt) => {
+              let startY = item.startYear;
+              let startM = item.startMonth;
+              if (item.card === 'MARCIA BISPO' && item.name.includes('Empréstimo')) {
+                startM = item.startMonth + 1;
+              }
+              const totalMonths = item.installments;
+              let endMonthIndex = startM - 1 + totalMonths - 1;
+              let endYear = startY + Math.floor(endMonthIndex / 12);
+              let endMonth = (endMonthIndex % 12) + 1;
+
+              const monthNames = [
+                'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+              ];
+              return `${monthNames[endMonth - 1]}/${endYear}`;
+            };
+
+            return (
+              <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200/60 transition-all hover:shadow-md space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-indigo-100 p-2.5 rounded-xl">
+                      <CreditCard className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-800">Controle de Cartões de Terceiros</h2>
+                      <p className="text-xs text-slate-500">Acompanhamento e quitação das dívidas em cartões de outras pessoas</p>
+                    </div>
+                  </div>
+                  <div className="bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl text-left sm:text-right shrink-0">
+                    <span className="block text-[10px] font-bold text-indigo-600 uppercase">Total no Mês</span>
+                    <span className="text-lg font-black text-indigo-950">{formatar(totalActiveDebts)}</span>
+                  </div>
+                </div>
+
+                {/* TIMELINE INTERATIVA */}
+                <div className="space-y-3">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                    Selecione o mês para ver a evolução e quitação:
+                  </span>
+                  
+                  <div className="flex gap-2 overflow-x-auto pb-2 pt-1 scrollbar-thin scrollbar-thumb-slate-200">
+                    {TIMELINE_MONTHS.map((m, idx) => {
+                      const isActive = timelineIndex === idx;
+                      const mActiveDebts = DEBT_ITEMS_CONFIG.map(item => {
+                        const inst = getInstallmentForMonth(item, m.year, m.month);
+                        return inst ? inst.amount : 0;
+                      }).reduce((sum, curr) => sum + curr, 0);
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setTimelineIndex(idx)}
+                          className={`flex flex-col items-center min-w-[85px] px-3 py-2 rounded-xl border text-center transition-all ${
+                            isActive
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10'
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="text-[10px] font-bold uppercase tracking-wider block opacity-80">
+                            {m.name.split('/')[0]}
+                          </span>
+                          <span className="text-xs font-bold tracking-tight block">
+                            {formatar(mActiveDebts)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* VISÃO GERAL PROGRESSO */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="font-bold text-slate-700">Visão de Redução:</span>
+                  </div>
+                  <p className="leading-relaxed text-[11px] text-slate-500">
+                    Em <strong>Julho de 2026</strong> o encargo total em cartões de terceiros é de <strong>{formatar(
+                      DEBT_ITEMS_CONFIG.map(item => {
+                        const inst = getInstallmentForMonth(item, 2026, 7);
+                        return inst ? inst.amount : 0;
+                      }).reduce((sum, curr) => sum + curr, 0)
+                    )}</strong>. 
+                    Devido à quitação gradual de parcelas, esse encargo reduz continuamente até atingir apenas <strong>{formatar(
+                      DEBT_ITEMS_CONFIG.map(item => {
+                        const inst = getInstallmentForMonth(item, 2027, 1);
+                        return inst ? inst.amount : 0;
+                      }).reduce((sum, curr) => sum + curr, 0)
+                    )}</strong> em Janeiro de 2027, quando você fará sua viagem!
+                  </p>
+                </div>
+
+                {/* GRID DE CARTÕES */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {cardsList.map((card) => {
+                    const cardTotal = card.items.reduce((sum, curr) => sum + curr.inst.amount, 0);
+                    const hasItems = card.items.length > 0;
+
+                    return (
+                      <div 
+                        key={card.id} 
+                        className={`p-5 rounded-2xl border transition-all ${
+                          hasItems 
+                            ? 'bg-white border-slate-200/70 shadow-sm hover:shadow-md' 
+                            : 'bg-emerald-50/40 border-emerald-100/50 opacity-80'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-4">
+                          <div>
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg ${
+                              hasItems 
+                                ? card.bgColor + ' ' + card.textColor
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {card.name}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Subtotal</span>
+                            <span className={`text-sm font-extrabold ${hasItems ? 'text-slate-800' : 'text-emerald-600'}`}>
+                              {hasItems ? formatar(cardTotal) : 'R$ 0,00'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {hasItems ? (
+                          <div className="space-y-3">
+                            {card.items.map((item, idx) => {
+                              const pct = (item.inst.current / item.inst.total) * 100;
+                              const isLastInstallment = item.inst.current === item.inst.total;
+                              
+                              return (
+                                <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-100/80 space-y-2">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                      <span className="font-bold text-slate-700 text-xs block leading-tight">
+                                        {item.name}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-semibold block mt-0.5">
+                                        Termina em: {getEndMonthName(item)}
+                                      </span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="font-extrabold text-slate-800 text-xs block">
+                                        {formatar(item.inst.amount)}
+                                      </span>
+                                      <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                        isLastInstallment 
+                                          ? 'bg-emerald-100 text-emerald-800' 
+                                          : 'bg-indigo-50 text-indigo-700'
+                                      }`}>
+                                        {item.inst.total === 1 ? 'Única' : `Parc. ${item.inst.current}/${item.inst.total}`}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {item.inst.total > 1 && (
+                                    <div className="space-y-1">
+                                      <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                        <div 
+                                          className={`h-full rounded-full transition-all duration-500 ${
+                                            isLastInstallment ? 'bg-emerald-500' : 'bg-indigo-500'
+                                          }`}
+                                          style={{ width: `${pct}%` }}
+                                        ></div>
+                                      </div>
+                                      <div className="flex justify-between text-[9px] text-slate-400 font-medium">
+                                        <span>Progresso da quitação</span>
+                                        <span>{pct.toFixed(0)}% pago</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                            <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                            <div>
+                              <p className="font-bold text-emerald-800 text-xs">Sem dívidas ativas!</p>
+                              <p className="text-[10px] text-emerald-600/70">Tudo quitado para este cartão em {selectedMonthConfig.fullName}.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })()}
         </div>
 
         {/* COLUNA DIREITA: DÍVIDAS E META DE VIAGEM */}
