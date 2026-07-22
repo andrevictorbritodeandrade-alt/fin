@@ -43,7 +43,7 @@ const Header: React.FC<HeaderProps> = ({
         : 'bg-gradient-to-r from-rose-700 to-pink-600';
 
     return (
-        <header className="sticky top-0 z-40 bg-gradient-to-b from-teal-600 via-teal-500/30 to-[#f0fdf4] backdrop-blur-lg pb-6 pt-4 rounded-b-[2.5rem] border-b border-emerald-900/10">
+        <header className="relative z-10 bg-gradient-to-b from-teal-600 via-teal-500/30 to-transparent pb-6 pt-4 rounded-b-[2.5rem] border-b border-emerald-900/10 mb-6">
             {/* Header & Title */}
             <div className="flex flex-col items-center pt-2 pb-4">
                 <h1 className="text-4xl lg:text-5xl font-black text-emerald-950 tracking-tighter drop-shadow-sm uppercase">

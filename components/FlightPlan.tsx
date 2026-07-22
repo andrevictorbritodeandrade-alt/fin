@@ -97,8 +97,12 @@ const DEBT_ITEMS_CONFIG: ThirdPartyDebt[] = [
   { name: 'Passeio de Safari', amount: 571.60, totalAmount: 3429.60, installments: 6, startYear: 2026, startMonth: 3, card: 'JADY' },
 
   // IAGO (NUBANK)
-  { name: 'Passagens Aéreas (697 + 697)', amount: 232.33, totalAmount: 1394.00, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
-  { name: 'Abastecimento', amount: 310.00, totalAmount: 310.00, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
+  { name: 'Emprestimo no cartao', amount: 416.00, totalAmount: 2496.00, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
+  { name: '02 Jul Gol Linhas', amount: 232.33, totalAmount: 1555.85, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
+  { name: 'Auto Posto', amount: 300.84, totalAmount: 300.84, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
+  { name: 'Jul Airbnb', amount: 190.75, totalAmount: 190.75, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
+  { name: 'Claro Flex', amount: 44.80, totalAmount: 44.80, installments: 1, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)', isVariableOnlyInAugust: true },
+  { name: 'Rent Cars', amount: 78.62, totalAmount: 471.72, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
   { name: 'Estadia em Maragogi', amount: 37.61, totalAmount: 225.66, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
   { name: 'Estadia em Aracaju', amount: 52.17, totalAmount: 313.02, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
   { name: 'Primeira Estadia em Salvador', amount: 30.95, totalAmount: 185.70, installments: 6, startYear: 2026, startMonth: 8, card: 'IAGO (NUBANK)' },
@@ -140,10 +144,15 @@ const getInstallmentForMonth = (item: ThirdPartyDebt, year: number, month: numbe
   const diffMonths = (year - startY) * 12 + (month - startM);
   if (diffMonths >= 0 && diffMonths < item.installments) {
     const current = diffMonths + 1;
+    let amount = item.amount;
+    // Overriding Gol Linhas amount for first installment (includes boarding tax)
+    if (item.name.includes('Gol Linhas') && current === 1) {
+      amount = 394.20;
+    }
     return {
       current,
       total: item.installments,
-      amount: item.amount,
+      amount: amount,
       active: true
     };
   }
@@ -175,7 +184,7 @@ export default function FlightPlan({ monthData }: FlightPlanProps) {
 
   // Estratégia de Emergência - Viagem Nordeste & Fatura Inter
   const [interLimit, setInterLimit] = useState<number>(752);
-  const [interCurrentBill, setInterCurrentBill] = useState<number>(548);
+  const [interCurrentBill, setInterCurrentBill] = useState<number>(1100.00);
   const [savingsReductionRate, setSavingsReductionRate] = useState<number>(100); // 100% means reduce savings to 0% to free maximum cash (highly recommended)
 
   // Auto animation mount
@@ -808,29 +817,58 @@ Seja direto, encorajador, prático e utilize formatação em markdown limpa e bo
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-700/30">
                       <span className="text-slate-300">Seu Limite Total no Inter:</span>
-                      <span className="font-extrabold text-slate-100">{formatar(interLimit)}</span>
+                      <div className="flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded-lg border border-slate-700">
+                        <span className="text-[10px] text-slate-400">R$</span>
+                        <input
+                          type="number"
+                          value={interLimit}
+                          onChange={(e) => setInterLimit(Number(e.target.value) || 0)}
+                          className="w-16 bg-transparent text-slate-100 font-extrabold focus:outline-none text-right text-xs"
+                        />
+                      </div>
                     </div>
                     
                     <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-700/30">
                       <span className="text-slate-300">Fatura Atual Comprometida (Mês que vem):</span>
-                      <span className="font-extrabold text-rose-300">{formatar(interCurrentBill)}</span>
+                      <div className="flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded-lg border border-slate-700">
+                        <span className="text-[10px] text-slate-400">R$</span>
+                        <input
+                          type="number"
+                          value={interCurrentBill}
+                          onChange={(e) => setInterCurrentBill(Number(e.target.value) || 0)}
+                          className="w-16 bg-transparent text-rose-300 font-extrabold focus:outline-none text-right text-xs"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-300 font-bold">Limite Restante Livre para Viagem:</span>
-                      <span className="font-black text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full">
-                        {formatar(interLimit - interCurrentBill)}
+                      <span className={`font-black text-[11px] px-2.5 py-0.5 rounded-full ${
+                        interLimit - interCurrentBill < 0 ? 'text-red-300 bg-red-500/20' : 'text-amber-400 bg-amber-500/10'
+                      }`}>
+                        {interLimit - interCurrentBill < 0 
+                          ? `Estourado por ${formatar(Math.abs(interLimit - interCurrentBill))}`
+                          : formatar(interLimit - interCurrentBill)
+                        }
                       </span>
                     </div>
                   </div>
 
                   <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-[11px] text-rose-200 leading-relaxed space-y-1">
                     <div className="flex items-center gap-1 font-bold text-rose-300">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>Risco de Fatura "Vir Rasgando"</span>
+                      <AlertCircle className="w-3.5 h-3.5 animate-pulse" />
+                      <span>{interLimit - interCurrentBill < 0 ? 'Fatura Excedeu o Limite' : 'Risco de Fatura Alta'}</span>
                     </div>
                     <p className="opacity-90">
-                      Com apenas R$ 204,00 livres, tentar passar toda a viagem no cartão vai estourar o limite e forçar juros de rotativo ou cheque especial. <strong>Você precisa de dinheiro vivo livre imediatamente!</strong>
+                      {interLimit - interCurrentBill < 0 ? (
+                        <>
+                          Sua fatura de <strong>{formatar(interCurrentBill)}</strong> já ultrapassou o seu limite disponível de <strong>{formatar(interLimit)}</strong> em <strong>{formatar(Math.abs(interLimit - interCurrentBill))}</strong>! Isso pode bloquear novas compras ou gerar multas pesadas. <strong>A quitação total imediata é crítica!</strong>
+                        </>
+                      ) : (
+                        <>
+                          Com apenas <strong>{formatar(interLimit - interCurrentBill)}</strong> livres, tentar passar toda a viagem no cartão vai estourar o limite e forçar juros de rotativo ou cheque especial. <strong>Você precisa de dinheiro vivo livre imediatamente!</strong>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>

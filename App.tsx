@@ -891,22 +891,36 @@ const App: React.FC = () => {
                 }
             }
 
-            // Ensure CARTÃO DO INTER DO ANDRÉ for July 2026
-            if (year === 2026 && month === 7) {
-                const hasInter = data.expenses.some(e => e.description.toUpperCase().includes("CARTÃO DO INTER DO ANDRÉ") || e.description.toUpperCase().includes("CARTAO DO INTER DO ANDRE"));
-                if (!hasInter) {
-                    data.expenses.push({
-                        id: `exp_cartao_inter_andre_${year}_${month}`,
-                        description: "CARTÃO DO INTER DO ANDRÉ",
-                        amount: 386.00,
-                        category: "Moradia",
-                        paid: true, // as requested earlier
-                        userModifiedPaid: true,
-                        dueDate: `${year}-07-10`,
-                        installments: { current: 1, total: 1 },
-                        group: 'MORADIA'
-                    });
-                }
+            // Ensure CARTÃO DO INTER DO ANDRÉ is present for all months, with specific adjustments
+            const hasInter = data.expenses.some(e => e.description.toUpperCase().includes("CARTÃO DO INTER DO ANDRÉ") || e.description.toUpperCase().includes("CARTAO DO INTER DO ANDRE"));
+            const targetInterAmount = (year === 2026 && month === 8) ? 1100.00 : 386.00;
+            const isInterPaidDefault = (year === 2026 && month === 7); // July is marked as paid as requested earlier, others are unpaid by default
+
+            if (!hasInter) {
+                data.expenses.push({
+                    id: `exp_cartao_inter_andre_${year}_${month}`,
+                    description: "CARTÃO DO INTER DO ANDRÉ",
+                    amount: targetInterAmount,
+                    category: "Moradia",
+                    paid: isInterPaidDefault,
+                    userModifiedPaid: isInterPaidDefault,
+                    dueDate: `${year}-${month.toString().padStart(2,'0')}-10`,
+                    installments: { current: 1, total: 1 },
+                    group: 'MORADIA'
+                });
+            } else {
+                // Ensure correct amount and paid state for existing items
+                data.expenses = data.expenses.map(e => {
+                    if (e.description.toUpperCase().includes("CARTÃO DO INTER DO ANDRÉ") || e.description.toUpperCase().includes("CARTAO DO INTER DO ANDRE")) {
+                        return { 
+                            ...e, 
+                            amount: targetInterAmount,
+                            paid: (year === 2026 && month === 7) ? true : e.paid,
+                            userModifiedPaid: (year === 2026 && month === 7) ? true : e.userModifiedPaid
+                        };
+                    }
+                    return e;
+                });
             }
 
             // Seguro do carro in July 2026 is skipped (congelado)
@@ -991,14 +1005,20 @@ const App: React.FC = () => {
             };
 
             if (year === 2026 && month === 8) {
-                addOrUpdateIagoExpense("ABASTECIMENTO", 310.00, "abastecimento", null);
+                addOrUpdateIagoExpense("AUTO POSTO", 300.84, "auto_posto", null);
+                addOrUpdateIagoExpense("JUL AIRBNB", 190.75, "airbnb", null);
+                addOrUpdateIagoExpense("CLARO FLEX", 44.80, "claro_flex", null);
             }
             if (iagoNewInst >= 1 && iagoNewInst <= 6) {
+                addOrUpdateIagoExpense("EMPRESTIMO NO CARTAO", 416.00, "emprestimo_cartao", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("ESTADIA DE MARAGOGI", 37.61, "maragogi", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("PRIMEIRA ESTADIA EM SALVADOR", 30.95, "primeira_salvador", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("ESTADIA EM ARACAJU", 52.17, "aracaju", { current: iagoNewInst, total: 6 });
                 addOrUpdateIagoExpense("SEGUNDA ESTADIA EM SALVADOR", 92.85, "segunda_salvador", { current: iagoNewInst, total: 6 });
-                addOrUpdateIagoExpense("PASSAGENS AÉREAS", 232.33, "passagens_aereas", { current: iagoNewInst, total: 6 });
+                
+                const targetPassagensAmount = (year === 2026 && month === 8) ? 394.20 : 232.33;
+                addOrUpdateIagoExpense("02 JUL GOL LINHAS", targetPassagensAmount, "gol_linhas", { current: iagoNewInst, total: 6 });
+                addOrUpdateIagoExpense("RENT CARS", 78.62, "rent_cars", { current: iagoNewInst, total: 6 });
             }
             
             // Cleanup old variables
@@ -1006,6 +1026,8 @@ const App: React.FC = () => {
                 const d = e.description.toUpperCase();
                 return !(d.includes("ESTADIA EM SALVADOR (IAGO)") && !d.includes("PRIMEIRA") && !d.includes("SEGUNDA")) && 
                        !(d.includes("COMPRA (697+697)")) &&
+                       !(d.includes("ABASTECIMENTO")) &&
+                       !(d.includes("PASSAGENS AÉREAS")) &&
                        !(d.includes("ALUGUEL DO CARRO (IAGO)"));
             });
         }
@@ -1540,19 +1562,19 @@ const App: React.FC = () => {
                     </div>
                 )}
 
-                <Header 
-                    month={currentMonth}
-                    year={currentYear}
-                    balance={balance}
-                    bankReserves={bankReserves}
-                    setBankReserves={handleUpdateReserves}
-                    checkInDate={checkIn.date}
-                    onMonthChange={handleMonthChange}
-                    onSync={() => monthData && saveData(monthData, currentYear, currentMonth)}
-                    syncStatus={syncStatus}
-                />
+                <main className="flex-1 overflow-y-auto pb-20 scroll-smooth relative">
+                    <Header 
+                        month={currentMonth}
+                        year={currentYear}
+                        balance={balance}
+                        bankReserves={bankReserves}
+                        setBankReserves={handleUpdateReserves}
+                        checkInDate={checkIn.date}
+                        onMonthChange={handleMonthChange}
+                        onSync={() => monthData && saveData(monthData, currentYear, currentMonth)}
+                        syncStatus={syncStatus}
+                    />
 
-                <main className="flex-1 overflow-y-auto p-4 lg:p-8 pb-20 scroll-smooth relative">
                     <AnimatePresence mode="wait">
                         {view === 'home' && (
                             <motion.div 
@@ -1561,7 +1583,7 @@ const App: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="w-full flex flex-col gap-8"
+                                className="w-full flex flex-col gap-8 px-4 lg:px-8 pb-8"
                             >
                                 
                                 {/* Dashboard Header Tabs - Mobile Only */}
@@ -2023,7 +2045,7 @@ const App: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto"
+                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto px-4 lg:px-8 pb-8"
                             >
                                 <Statistics monthData={monthData} currentMonth={currentMonth} currentYear={currentYear} />
                             </motion.div>
@@ -2036,7 +2058,7 @@ const App: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto animate-slide-up"
+                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto animate-slide-up px-4 lg:px-8 pb-8"
                             >
                                 <FlightPlan monthData={monthData} />
                             </motion.div>
@@ -2049,7 +2071,7 @@ const App: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto"
+                                className="w-full flex flex-col gap-8 max-w-7xl mx-auto px-4 lg:px-8 pb-8"
                             >
                                 <Settlements 
                                     monthData={monthData} 
@@ -2066,10 +2088,10 @@ const App: React.FC = () => {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.5 }}
-                                className="max-w-4xl mx-auto flex flex-col gap-5"
+                                className="max-w-4xl mx-auto flex flex-col gap-5 px-4 lg:px-8 pb-8"
                             >
-                                <div className="sticky top-0 z-20 pt-2 pb-2 backdrop-blur-sm">
-                                    <div className="flex p-1.5 bg-white/80 border border-white rounded-2xl shadow-lg shadow-slate-200/50 backdrop-blur-md">
+                                <div className="sticky top-0 z-20 pt-3 pb-3 bg-[#f0fdf4] backdrop-blur-md border-b border-emerald-900/5 -mx-4 px-4 lg:-mx-8 lg:px-8">
+                                    <div className="flex p-1.5 bg-white border border-slate-100 rounded-2xl shadow-md">
                                         {(['incomes', 'expenses', 'avulsosItems'] as const).map(type => (
                                             <button
                                                 key={type}

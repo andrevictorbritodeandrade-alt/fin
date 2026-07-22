@@ -176,7 +176,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onToggl
         <div className="flex flex-col pb-8">
             {sortedKeys.map(key => (
                 <div key={key} className="mb-6 animate-fadeIn">
-                    <div className="sticky top-0 z-10 backdrop-blur-md bg-slate-50/80 py-3 mb-2 px-1 rounded-lg">
+                    <div className="relative z-10 py-2 mb-1 px-1">
                         <h3 className={`text-sm font-black uppercase tracking-widest ${getHeaderStyle(key)}`}>
                             {formatDateHeader(key)}
                         </h3>
@@ -252,8 +252,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions, onToggl
                                                 <span className={`text-[10px] lg:text-sm font-black opacity-50 ${item.paid ? 'text-gray-400' : 'text-slate-400'}`}>R$</span>
                                                 <input 
                                                     type="number"
-                                                    value={item.amount}
-                                                    onChange={(e) => onUpdate({ ...item, amount: parseFloat(e.target.value) || 0 })}
+                                                    step="0.01"
+                                                    value={typeof item.amount === 'number' && !isNaN(item.amount) ? Math.round(item.amount * 100) / 100 : item.amount}
+                                                    onChange={(e) => onUpdate({ ...item, amount: Math.round((parseFloat(e.target.value) || 0) * 100) / 100 })}
                                                     onClick={(e) => e.stopPropagation()}
                                                     className={`w-16 lg:w-28 bg-transparent border-none p-0 focus:ring-0 font-black text-xs lg:text-lg text-right outline-none tracking-tight ${item.paid ? 'text-gray-400' : isAllocation ? 'text-amber-900' : 'text-slate-900'}`}
                                                 />
